@@ -23,7 +23,8 @@ Normgruppe?           zum Post-Test?        Messfehler?            praktisch?   
 
 ---
 
-**Einstiegspunkt:** [`00_Lernunterlage.html`](00_Lernunterlage.html) — strukturierte Lernunterlage mit Aufgaben zu jedem Modul.
+**Einstiegspunkt:** [`00_Lernunterlage.html`](00_Lernunterlage.html) — strukturierte Lernunterlage mit Aufgaben zu jedem Modul. 
+⚠️ Die Unterlagen wurden für die Ansicht am Laptop optimiert. Die Ansicht ist **NICHT** für das Handy ausgelegt. ⚠️
 
 ---
 
