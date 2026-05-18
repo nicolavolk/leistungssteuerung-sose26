@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modul B — Pre-Post Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --rub:#003560;--rub-light:#e8eef4;--muted:#5a6a7a;
+  --border:#d0d8e0;--bg:#f8f9fb;
+  --green:#3a7a35;--red:#b03020;--gray:#8090a0;
+  --swc:#e07030;
+}
+body{font-family:'Atkinson Hyperlegible',sans-serif;background:var(--bg);color:#1a2332;min-height:100vh}
+header{background:var(--rub);color:#fff;padding:18px 32px;display:flex;align-items:center;gap:16px}
+.rub-badge{background:#fff;color:var(--rub);font-family:'Crimson Pro',serif;font-weight:700;font-size:1.1rem;padding:4px 10px;border-radius:2px}
+header h1{font-family:'Crimson Pro',serif;font-size:1.35rem;font-weight:600}
+header p{font-size:.8rem;opacity:.7;margin-top:2px}
+
+.layout{display:grid;grid-template-columns:310px 1fr;height:calc(100vh - 72px)}
+
+.controls{background:#fff;border-right:1px solid var(--border);overflow-y:auto;padding:20px 16px}
+.st{font-family:'Crimson Pro',serif;font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.st:first-child{margin-top:0}
+
+.toggle{display:flex;border-radius:6px;overflow:hidden;border:1px solid var(--border);margin-bottom:12px}
+.tbtn{flex:1;padding:7px 0;font-size:.8rem;background:#fff;border:none;cursor:pointer;color:var(--muted);font-family:'Atkinson Hyperlegible',sans-serif}
+.tbtn.active{background:var(--rub);color:#fff;font-weight:700}
+
+.field{margin-bottom:10px}
+label{display:block;font-size:.75rem;color:var(--muted);margin-bottom:3px;font-weight:700;letter-spacing:.04em}
+input[type=number]{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:5px;font-size:.86rem;font-family:'Atkinson Hyperlegible',sans-serif;background:#fff;color:#1a2332}
+input[type=number]:focus{outline:2px solid var(--rub);border-color:var(--rub)}
+input[type=range]{width:100%;accent-color:var(--rub);margin:5px 0}
+.val-disp{font-size:.8rem;color:var(--rub);text-align:right;font-weight:700;margin-top:-4px}
+
+.sim-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* Data table */
+.data-table-wrap{max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:6px}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+thead{background:var(--rub);color:#fff;position:sticky;top:0}
+thead th{padding:6px 8px;text-align:left;font-weight:700;font-size:.72rem;letter-spacing:.04em}
+tbody tr:nth-child(even){background:#f5f7fa}
+tbody td{padding:5px 4px;border-bottom:1px solid #eef0f4}
+tbody td input{width:100%;padding:3px 5px;border:1px solid #d0d8e0;border-radius:3px;font-size:.8rem;text-align:center;font-family:'Atkinson Hyperlegible',sans-serif}
+tbody td input:focus{outline:1px solid var(--rub)}
+.delta-cell{text-align:center;font-weight:700;font-family:'Crimson Pro',serif;font-size:.9rem}
+.resp-cell{text-align:center;font-size:.85rem}
+
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 12px;border-radius:5px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:.8rem;font-family:'Atkinson Hyperlegible',sans-serif;color:var(--muted);transition:.15s}
+.btn:hover{background:var(--rub-light);color:var(--rub)}
+.btn-rub{background:var(--rub);color:#fff;border-color:var(--rub)}
+.btn-rub:hover{background:#002a50}
+.btn-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+
+.swc-box{background:#fff8ee;border:1px solid #e8c880;border-radius:7px;padding:9px 11px;margin-top:12px;font-size:.78rem;color:#7a5010}
+.swc-box strong{display:block;margin-bottom:2px}
+.swc-val{font-family:'Crimson Pro',serif;font-size:1.4rem;font-weight:700;color:var(--swc)}
+
+/* Viz */
+.viz{display:flex;flex-direction:column;padding:16px 20px;overflow:hidden;gap:12px}
+.metric-row{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;flex-shrink:0}
+.mc{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 8px;text-align:center}
+.mc .v{font-family:'Crimson Pro',serif;font-size:1.7rem;font-weight:700;line-height:1}
+.mc .l{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.mc.hl{background:var(--rub);border-color:var(--rub)}
+.mc.hl .v,.mc.hl .l{color:#fff}
+.mc.green{background:#e8f4e8;border-color:#4a9a45}.mc.green .v{color:var(--green)}
+.mc.red{background:#faeaea;border-color:#c04040}.mc.red .v{color:var(--red)}
+
+.chart-tabs{display:flex;gap:0;border-radius:6px;overflow:hidden;border:1px solid var(--border);width:fit-content;flex-shrink:0}
+.ctab{padding:7px 18px;font-size:.8rem;background:#fff;border:none;cursor:pointer;color:var(--muted);font-family:'Atkinson Hyperlegible',sans-serif;transition:.15s}
+.ctab.active{background:var(--rub);color:#fff;font-weight:700}
+
+.canvas-wrap{flex:1;position:relative;min-height:160px}
+canvas#chart{position:absolute;top:0;left:0}
+
+.legend-row{display:flex;gap:16px;flex-shrink:0;font-size:.75rem;color:var(--muted);align-items:center;flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:5px}
+.ld{width:18px;height:4px;border-radius:2px}
+.resp-summary{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 14px;flex-shrink:0;font-size:.8rem;display:flex;gap:24px;align-items:center}
+.rs-block{text-align:center}
+.rs-block .n{font-family:'Crimson Pro',serif;font-size:1.6rem;font-weight:700}
+.rs-block .t{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+</style>
+</head>
+<body>
+<header>
+  <span class="rub-badge">RUB</span>
+  <div>
+    <h1>Modul B — Pre-Post Visualizer</h1>
+    <p>Leistungssteuerung (Modul 13) · UE 4 · SoSe 2026</p>
+  </div>
+</header>
+
+<div class="layout">
+<!-- ── Controls ── -->
+<div class="controls">
+  <div class="st">Eingabemodus</div>
+  <div class="toggle">
+    <button class="tbtn active" id="btn-sim" onclick="setMode('sim')">Simulation</button>
+    <button class="tbtn" id="btn-man" onclick="setMode('man')">Manuelle Eingabe</button>
+  </div>
+
+  <!-- Simulation -->
+  <div id="sim-panel">
+    <div class="st">Simulationsparameter</div>
+    <div class="sim-grid">
+      <div class="field"><label>N ATHLETEN</label><input type="range" id="s-n" min="4" max="20" step="1" value="10" oninput="onSim()"><div class="val-disp" id="d-n">10</div></div>
+      <div class="field"><label>MITTELWERT PRE</label><input type="number" id="s-mpre" value="40" step="1" oninput="onSim()"></div>
+      <div class="field"><label>SD PRE</label><input type="number" id="s-sdpre" value="5" step="0.5" min="0.1" oninput="onSim()"></div>
+      <div class="field"><label>MITTL. Δ (EFFEKT)</label><input type="number" id="s-delta" value="3" step="0.5" oninput="onSim()"></div>
+      <div class="field"><label>Streuung der ind. Veränderungen</label><input type="number" id="s-sdchange" value="2.5" step="0.5" min="0.1" oninput="onSim()"></div>
+      <div class="field" style="display:flex;align-items:flex-end"><button class="btn btn-rub" onclick="reseed()" style="width:100%;justify-content:center">🔀 Neu</button></div>
+    </div>
+  </div>
+
+  <!-- Manual -->
+  <div id="man-panel" style="display:none">
+    <div class="st">Daten eingeben</div>
+    <div class="data-table-wrap">
+      <table id="data-table">
+        <thead><tr><th>#</th><th>Pre</th><th>Post</th><th>Δ</th><th>↗</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="addAthlete()">+ Athlet</button>
+      <button class="btn" onclick="removeAthlete()">− Athlet</button>
+    </div>
+  </div>
+
+  <!-- SWC -->
+  <div class="swc-box">
+    <strong>SWC (Smallest Worthwhile Change)</strong>
+    SWC = 0,2 × SD<sub>Pre</sub><br>
+    SWC = <span class="swc-val" id="swc-val">1.00</span>
+    <span style="font-size:.72rem;display:block;margin-top:4px;color:#9a7020">Verändert sich ein Athlet um mehr als diesen Wert, gilt die Änderung als praktisch bedeutsam.</span>
+  </div>
+</div>
+
+<!-- ── Viz ── -->
+<div class="viz">
+  <div class="metric-row">
+    <div class="mc"><div class="v" id="m-mpre">–</div><div class="l">M Pre</div></div>
+    <div class="mc"><div class="v" id="m-mpost">–</div><div class="l">M Post</div></div>
+    <div class="mc hl"><div class="v" id="m-delta">–</div><div class="l">Ø Δ%</div></div>
+    <div class="mc"><div class="v" id="m-dz">–</div><div class="l">Cohen's d<sub>z</sub></div></div>
+    <div class="mc green"><div class="v" id="m-resp">–</div><div class="l">Responder</div></div>
+    <div class="mc red"><div class="v" id="m-nonresp">–</div><div class="l">Non-Resp.</div></div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+    <div class="chart-tabs">
+      <button class="ctab active" onclick="setTab('spaghetti')">Spaghetti-Plot</button>
+      <button class="ctab" onclick="setTab('waterfall')">Waterfall</button>
+      <button class="ctab" onclick="setTab('beeswarm')">Beeswarm</button>
+    </div>
+    <div style="font-size:.75rem;color:var(--muted)" id="chart-hint">Jede Linie = ein Athlet</div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="legend-row">
+    <div class="li"><div class="ld" style="background:var(--green);height:3px"></div><span>Responder (Δ &gt; SWC)</span></div>
+    <div class="li"><div class="ld" style="background:var(--gray)"></div><span>Kein klarer Effekt (|Δ| ≤ SWC)</span></div>
+    <div class="li"><div class="ld" style="background:var(--red)"></div><span>Negativer Responder (Δ &lt; −SWC)</span></div>
+    <div class="li" style="margin-left:auto"><div class="ld" style="background:var(--swc);height:2px;border-top:2px dashed var(--swc)"></div><span>SWC-Schwelle</span></div>
+  </div>
+
+  <div class="resp-summary">
+    <span style="font-size:.78rem;color:var(--muted);font-style:italic;flex:1" id="resp-text"></span>
+    <div class="rs-block"><div class="n" style="color:var(--green)" id="rs-resp">–</div><div class="t">Responder</div></div>
+    <div class="rs-block"><div class="n" style="color:var(--gray)" id="rs-neut">–</div><div class="t">Kein Effekt</div></div>
+    <div class="rs-block"><div class="n" style="color:var(--red)" id="rs-neg">–</div><div class="t">Neg. Resp.</div></div>
+  </div>
+</div>
+</div>
+
+<script>
+let mode='sim', tab='spaghetti', seed=42;
+let manData=[];
+
+// ── RNG ──
+function splitmix32(s){
+  return function(){s|=0;s=s+0x9e3779b9|0;let t=s^s>>>16;t=Math.imul(t,0x21f0aaad);t=t^t>>>15;t=Math.imul(t,0x735a2d97);return((t=t^t>>>15)>>>0)/4294967296};
+}
+let rng=splitmix32(seed);
+function bm(){
+  let u,v;
+  do{u=rng();v=rng();}while(u===0);
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+function reseed(){seed=Math.floor(Math.random()*999999);rng=splitmix32(seed);generateSim();}
+
+// ── Data generation ──
+function generateSim(){
+  const n=parseInt(document.getElementById('s-n').value)||10;
+  const mPre=parseFloat(document.getElementById('s-mpre').value)||40;
+  const sdPre=parseFloat(document.getElementById('s-sdpre').value)||5;
+  const delta=parseFloat(document.getElementById('s-delta').value)||0;
+  const sdChange=parseFloat(document.getElementById('s-sdchange').value)||2;
+  rng=splitmix32(seed);
+  manData=[];
+  for(let i=0;i<n;i++){
+    const pre=mPre+bm()*sdPre;
+    const d=delta+bm()*sdChange;
+    manData.push({pre,post:pre+d});
+  }
+  update();
+}
+
+function getData(){
+  if(mode==='sim') return manData;
+  return manData.filter(d=>!isNaN(d.pre)&&!isNaN(d.post));
+}
+
+// ── Stats ──
+function mean(arr){return arr.reduce((a,b)=>a+b,0)/arr.length}
+function sd(arr){const m=mean(arr);return Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/(arr.length-1))}
+function erf(x){const t=1/(1+0.3275911*Math.abs(x));const p=t*(0.254829592+t*(-0.284496736+t*(1.421413741+t*(-1.453152027+t*1.061405429))));const r=1-p*Math.exp(-x*x);return x>=0?r:-r;}
+function Phi(z){return 0.5*(1+erf(z/Math.sqrt(2)))}
+
+// ── Update all ──
+function update(){
+  const data=getData();
+  if(!data.length) return;
+
+  const pres=data.map(d=>d.pre);
+  const posts=data.map(d=>d.post);
+  const deltas=data.map(d=>d.post-d.pre);
+  const mPre=mean(pres), mPost=mean(posts);
+  const sdPre=sd(pres)||0.01;
+  const swc=0.2*sdPre;
+  const mDelta=mean(deltas);
+  const sdDelta=sd(deltas)||0.01;
+  const dz=mDelta/sdDelta;
+  const n=data.length;
+  const df=n-1;
+  const J=1-3/(4*df-1);
+  const g=dz*J;
+
+  const responders=data.filter(d=>d.post-d.pre>swc).length;
+  const negResp=data.filter(d=>d.post-d.pre<-swc).length;
+  const neutral=n-responders-negResp;
+
+  // Metric cards
+  document.getElementById('m-mpre').textContent=mPre.toFixed(1);
+  document.getElementById('m-mpost').textContent=mPost.toFixed(1);
+  const deltaPct=(mDelta/mPre*100);
+  document.getElementById('m-delta').textContent=(deltaPct>=0?'+':'')+deltaPct.toFixed(1)+'%';
+  document.getElementById('m-dz').textContent=(dz>=0?'+':'')+dz.toFixed(2);
+  document.getElementById('m-resp').textContent=responders+'/'+n;
+  document.getElementById('m-nonresp').textContent=negResp+'/'+n;
+
+  // SWC
+  document.getElementById('swc-val').textContent=swc.toFixed(2);
+
+  // Responder summary
+  document.getElementById('rs-resp').textContent=responders;
+  document.getElementById('rs-neut').textContent=neutral;
+  document.getElementById('rs-neg').textContent=negResp;
+  const rPct=Math.round(responders/n*100);
+  document.getElementById('resp-text').textContent=
+    `${responders} von ${n} Athleten (${rPct}%) verbessern sich über die SWC-Schwelle — ` +
+    `d_z = ${(dz>=0?'+':'')+dz.toFixed(2)}, Hedges' g = ${(g>=0?'+':'')+g.toFixed(2)}. ` +
+    `Ø Veränderung: ${(deltaPct>=0?'+':'')+deltaPct.toFixed(1)}%.`;
+
+  // Update manual table if in manual mode
+  if(mode==='man') refreshTable(data,swc);
+
+  drawChart(data,swc,mPre,sdPre);
+}
+
+// ── Charts ──
+function setTab(t){
+  tab=t;
+  document.querySelectorAll('.ctab').forEach((b,i)=>{
+    b.classList.toggle('active',['spaghetti','waterfall','beeswarm'][i]===t);
+  });
+  const hints={spaghetti:'Jede Linie = ein Athlet | Farbe = Responder-Status',waterfall:'Sortiert nach individuellem Δ | Balken = Veränderung',beeswarm:'Punkte = Einzelwerte | Jitter verhindert Überlappung'};
+  document.getElementById('chart-hint').textContent=hints[t];
+  update();
+}
+
+function drawChart(data,swc,mPre,sdPre){
+  const canvas=document.getElementById('chart');
+  const wrap=canvas.parentElement;
+  const W=wrap.clientWidth,H=wrap.clientHeight;
+  canvas.width=W*devicePixelRatio;canvas.height=H*devicePixelRatio;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(devicePixelRatio,devicePixelRatio);
+  if(tab==='spaghetti') drawSpaghetti(ctx,W,H,data,swc);
+  else if(tab==='waterfall') drawWaterfall(ctx,W,H,data,swc);
+  else drawBeeswarm(ctx,W,H,data,swc,mPre,sdPre);
+}
+
+function respColor(delta,swc,alpha=1){
+  const a=alpha<1?Math.round(alpha*255).toString(16).padStart(2,'0'):'';
+  if(delta>swc) return'#3a7a35'+a;
+  if(delta<-swc) return'#b03020'+a;
+  return'#8090a0'+a;
+}
+
+function drawSpaghetti(ctx,W,H,data,swc){
+  const PAD={l:52,r:30,t:24,b:42};
+  const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b;
+  const allV=[...data.map(d=>d.pre),...data.map(d=>d.post)];
+  const vMin=Math.min(...allV),vMax=Math.max(...allV);
+  const vPad=(vMax-vMin)*0.12||1;
+  const ty=v=>PAD.t+cH-(v-vMin+vPad)/(vMax-vMin+2*vPad)*cH;
+  const xPre=PAD.l+cW*0.2,xPost=PAD.l+cW*0.8;
+
+  ctx.clearRect(0,0,W,H);
+
+  // Gridlines
+  ctx.strokeStyle='#e8eef4';ctx.lineWidth=1;
+  const nTicks=5;
+  ctx.font="11px 'Atkinson Hyperlegible',sans-serif";
+  for(let i=0;i<=nTicks;i++){
+    const v=vMin+vPad+(vMax-vMin)*i/nTicks;
+    const y=ty(v);
+    ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(W-PAD.r,y);ctx.stroke();
+    ctx.fillStyle='#8090a0';ctx.textAlign='right';
+    ctx.fillText(v.toFixed(1),PAD.l-4,y+4);
+  }
+
+  // Lines
+  for(const d of data){
+    const delta=d.post-d.pre;
+    const col=respColor(delta,swc,0.7);
+    ctx.beginPath();ctx.moveTo(xPre,ty(d.pre));ctx.lineTo(xPost,ty(d.post));
+    ctx.strokeStyle=col;ctx.lineWidth=1.8;ctx.stroke();
+  }
+  // Dots (post on top of lines)
+  for(const d of data){
+    const delta=d.post-d.pre;
+    const col=respColor(delta,swc);
+    for(const [x,v] of [[xPre,d.pre],[xPost,d.post]]){
+      ctx.beginPath();ctx.arc(x,ty(v),4.5,0,Math.PI*2);
+      ctx.fillStyle=col;ctx.fill();
+      ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();
+    }
+  }
+
+  // Mean lines
+  const mPre=data.reduce((s,d)=>s+d.pre,0)/data.length;
+  const mPost=data.reduce((s,d)=>s+d.post,0)/data.length;
+  ctx.setLineDash([6,3]);ctx.strokeStyle='#003560';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(xPre,ty(mPre));ctx.lineTo(xPost,ty(mPost));ctx.stroke();
+  ctx.setLineDash([]);
+  for(const [x,v,lbl] of [[xPre,mPre,'Ø Pre'],[xPost,mPost,'Ø Post']]){
+    ctx.beginPath();ctx.arc(x,ty(v),6,0,Math.PI*2);ctx.fillStyle='#003560';ctx.fill();
+    ctx.fillStyle='#003560';ctx.font="bold 11px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+    ctx.fillText(v.toFixed(1),x,ty(v)-10);
+  }
+
+  // Labels
+  ctx.fillStyle='#1a2332';ctx.font="bold 13px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+  ctx.fillText('Pre',xPre,H-PAD.b/2+6);
+  ctx.fillText('Post',xPost,H-PAD.b/2+6);
+  ctx.strokeStyle='#d0d8e0';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(PAD.l,H-PAD.b);ctx.lineTo(W-PAD.r,H-PAD.b);ctx.stroke();
+}
+
+function drawWaterfall(ctx,W,H,data,swc){
+  const PAD={l:52,r:20,t:30,b:42};
+  const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b;
+  const sorted=[...data.map(d=>({...d,delta:d.post-d.pre}))].sort((a,b)=>a.delta-b.delta);
+  const deltas=sorted.map(d=>d.delta);
+  const dMin=Math.min(...deltas),dMax=Math.max(...deltas);
+  const dPad=Math.max(swc*2,(dMax-dMin)*0.1)||1;
+  const yMin=Math.min(0,dMin)-dPad*0.5,yMax=Math.max(0,dMax)+dPad*0.5;
+  const ty=v=>PAD.t+cH-(v-yMin)/(yMax-yMin)*cH;
+  const barW=Math.max(8,cW/sorted.length*0.7);
+  ctx.clearRect(0,0,W,H);
+
+  // Grid & y-axis
+  ctx.font="11px 'Atkinson Hyperlegible',sans-serif";
+  const nTicks=6;
+  for(let i=0;i<=nTicks;i++){
+    const v=yMin+(yMax-yMin)*i/nTicks;
+    const y=ty(v);
+    ctx.strokeStyle='#e8eef4';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(W-PAD.r,y);ctx.stroke();
+    ctx.fillStyle='#8090a0';ctx.textAlign='right';
+    ctx.fillText((v>=0?'+':'')+v.toFixed(1),PAD.l-4,y+4);
+  }
+
+  // SWC lines
+  for(const sv of [swc,-swc]){
+    const y=ty(sv);
+    ctx.strokeStyle='#e07030';ctx.lineWidth=1.5;ctx.setLineDash([5,3]);
+    ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(W-PAD.r,y);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#e07030';ctx.textAlign='left';ctx.font="10px 'Atkinson Hyperlegible',sans-serif";
+    ctx.fillText(sv>0?'SWC':'-SWC',PAD.l+2,y-3);
+  }
+
+  // Zero line
+  const y0=ty(0);
+  ctx.strokeStyle='#6a7a8a';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(PAD.l,y0);ctx.lineTo(W-PAD.r,y0);ctx.stroke();
+
+  // Bars
+  for(let i=0;i<sorted.length;i++){
+    const d=sorted[i];
+    const x=PAD.l+(i+0.5)*cW/sorted.length;
+    const col=respColor(d.delta,swc);
+    const top=ty(Math.max(0,d.delta)),bot=ty(Math.min(0,d.delta));
+    ctx.fillStyle=col+'cc';
+    ctx.fillRect(x-barW/2,top,barW,bot-top||2);
+    ctx.strokeStyle=col;ctx.lineWidth=1;
+    ctx.strokeRect(x-barW/2,top,barW,bot-top||2);
+    // Value label if room
+    if(barW>20){
+      ctx.fillStyle=col;ctx.font="bold 9px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+      const labelY=d.delta>=0?top-3:bot+10;
+      ctx.fillText((d.delta>=0?'+':'')+d.delta.toFixed(1),x,labelY);
+    }
+  }
+
+  // Mean delta line
+  const mD=deltas.reduce((a,b)=>a+b,0)/deltas.length;
+  const ym=ty(mD);
+  ctx.strokeStyle='#003560';ctx.lineWidth=2;ctx.setLineDash([4,2]);
+  ctx.beginPath();ctx.moveTo(PAD.l,ym);ctx.lineTo(W-PAD.r,ym);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#003560';ctx.font="bold 11px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='right';
+  ctx.fillText('Ø '+(mD>=0?'+':'')+mD.toFixed(1),W-PAD.r-2,ym-4);
+
+  ctx.fillStyle='#1a2332';ctx.font="bold 12px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+  ctx.fillText('Individuelle Veränderungen (Δ), sortiert',W/2,H-PAD.b/3+6);
+}
+
+function drawBeeswarm(ctx,W,H,data,swc,mPre,sdPre){
+  const PAD={l:52,r:20,t:24,b:42};
+  const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b;
+  const allV=[...data.map(d=>d.pre),...data.map(d=>d.post)];
+  const vMin=Math.min(...allV),vMax=Math.max(...allV);
+  const vPad=(vMax-vMin)*0.12||1;
+  const ty=v=>PAD.t+cH-(v-vMin+vPad)/(vMax-vMin+2*vPad)*cH;
+  const xPre=PAD.l+cW*0.25,xPost=PAD.l+cW*0.75;
+  const r=5;
+  ctx.clearRect(0,0,W,H);
+
+  // Gridlines
+  ctx.font="11px 'Atkinson Hyperlegible',sans-serif";
+  const nT=5;
+  for(let i=0;i<=nT;i++){
+    const v=vMin+vPad+(vMax-vMin)*i/nT;
+    const y=ty(v);
+    ctx.strokeStyle='#e8eef4';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(W-PAD.r,y);ctx.stroke();
+    ctx.fillStyle='#8090a0';ctx.textAlign='right';ctx.fillText(v.toFixed(1),PAD.l-4,y+4);
+  }
+
+  // Jitter: sort by value, space horizontally within column
+  function jitter(pts,x0){
+    const sorted=[...pts].sort((a,b)=>a.v-b.v);
+    const placed=[];
+    for(const p of sorted){
+      let jx=0,tries=0;
+      while(tries<30&&placed.some(q=>Math.abs(q.y-ty(p.v))<r*2&&Math.abs(q.x-(x0+jx))<r*2)){
+        jx=(Math.random()-0.5)*r*4;tries++;
+      }
+      placed.push({x:x0+jx,y:ty(p.v),v:p.v,delta:p.delta});
+    }
+    return placed;
+  }
+
+  const rng2=splitmix32(seed+7);
+  // Simple deterministic jitter
+  function djitter(pts,x0){
+    return pts.map((p,i)=>{
+      const offset=(i%2===0?1:-1)*Math.floor(i/2)*r*1.8;
+      return{x:x0+offset,y:ty(p.v),v:p.v,delta:p.delta||0};
+    });
+  }
+
+  const sortedPre=[...data.map(d=>({v:d.pre,delta:d.post-d.pre}))].sort((a,b)=>a.v-b.v);
+  const sortedPost=[...data.map(d=>({v:d.post,delta:d.post-d.pre}))].sort((a,b)=>a.v-b.v);
+  const placedPre=djitter(sortedPre,xPre);
+  const placedPost=djitter(sortedPost,xPost);
+
+  // Draw points
+  for(const p of placedPre){
+    ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);
+    ctx.fillStyle=respColor(p.delta,swc)+'bb';ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();
+  }
+  for(const p of placedPost){
+    ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);
+    ctx.fillStyle=respColor(p.delta,swc)+'bb';ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();
+  }
+
+  // Mean & SD bars
+  const mPreV=data.reduce((s,d)=>s+d.pre,0)/data.length;
+  const mPostV=data.reduce((s,d)=>s+d.post,0)/data.length;
+  const sdPreV=sd(data.map(d=>d.pre))||1;
+  const sdPostV=sd(data.map(d=>d.post))||1;
+
+  for(const [x,m,s] of [[xPre,mPreV,sdPreV],[xPost,mPostV,sdPostV]]){
+    // SD bar
+    ctx.strokeStyle='#003560';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(x-16,ty(m+s));ctx.lineTo(x+16,ty(m+s));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x,ty(m+s));ctx.lineTo(x,ty(m-s));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x-16,ty(m-s));ctx.lineTo(x+16,ty(m-s));ctx.stroke();
+    // Mean line
+    ctx.strokeStyle='#003560';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(x-20,ty(m));ctx.lineTo(x+20,ty(m));ctx.stroke();
+    // Label
+    ctx.fillStyle='#003560';ctx.font="bold 11px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+    ctx.fillText(m.toFixed(1),x,ty(m+s)-8);
+  }
+
+  // Col labels
+  ctx.fillStyle='#1a2332';ctx.font="bold 13px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+  ctx.fillText('Pre',xPre,H-PAD.b/2+6);ctx.fillText('Post',xPost,H-PAD.b/2+6);
+  ctx.strokeStyle='#d0d8e0';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(PAD.l,H-PAD.b);ctx.lineTo(W-PAD.r,H-PAD.b);ctx.stroke();
+}
+
+// ── Manual table ──
+function initManualData(){
+  manData=Array.from({length:8},(_,i)=>({pre:40+Math.round(bm()*5),post:43+Math.round(bm()*5)}));
+}
+
+function refreshTable(data,swc){
+  const tbody=document.getElementById('tbody');
+  tbody.innerHTML='';
+  data.forEach((d,i)=>{
+    const delta=d.post-d.pre;
+    const col=delta>swc?'var(--green)':delta<-swc?'var(--red)':'var(--gray)';
+    const icon=delta>swc?'↑':delta<-swc?'↓':'→';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="text-align:center;color:var(--muted);font-size:.75rem">${i+1}</td>
+      <td><input type="number" value="${d.pre.toFixed(1)}" step="0.1" data-i="${i}" data-f="pre" oninput="onCellChange(this)"></td>
+      <td><input type="number" value="${d.post.toFixed(1)}" step="0.1" data-i="${i}" data-f="post" oninput="onCellChange(this)"></td>
+      <td class="delta-cell" style="color:${col}">${(delta>=0?'+':'')+delta.toFixed(1)}</td>
+      <td class="resp-cell" style="color:${col}">${icon}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function onCellChange(inp){
+  const i=parseInt(inp.dataset.i),f=inp.dataset.f;
+  manData[i][f]=parseFloat(inp.value)||0;
+  update();
+}
+function addAthlete(){manData.push({pre:40,post:40});update();}
+function removeAthlete(){if(manData.length>2){manData.pop();update();}}
+
+// ── Misc ──
+function setMode(m){
+  mode=m;
+  document.getElementById('btn-sim').classList.toggle('active',m==='sim');
+  document.getElementById('btn-man').classList.toggle('active',m==='man');
+  document.getElementById('sim-panel').style.display=m==='sim'?'block':'none';
+  document.getElementById('man-panel').style.display=m==='man'?'block':'none';
+  if(m==='man'&&!manData.length) initManualData();
+  update();
+}
+
+function onSim(){
+  document.getElementById('d-n').textContent=document.getElementById('s-n').value;
+  generateSim();
+}
+
+function sd(arr){
+  if(arr.length<2) return 0;
+  const m=arr.reduce((a,b)=>a+b,0)/arr.length;
+  return Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/(arr.length-1));
+}
+function splitmix32(s){return function(){s|=0;s=s+0x9e3779b9|0;let t=s^s>>>16;t=Math.imul(t,0x21f0aaad);t=t^t>>>15;t=Math.imul(t,0x735a2d97);return((t=t^t>>>15)>>>0)/4294967296};}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  generateSim();
+  window.addEventListener('resize',update);
+});
+</script>
+</body>
+</html>

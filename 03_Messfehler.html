@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modul C — Messfehler &amp; MDC</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --rub:#003560;--rub-light:#e8eef4;--muted:#5a6a7a;
+  --border:#d0d8e0;--bg:#f8f9fb;
+  --green:#3a7a35;--red:#b03020;--orange:#d06010;
+  --noise:#8090a0;--effect:#003560;
+}
+body{font-family:'Atkinson Hyperlegible',sans-serif;background:var(--bg);color:#1a2332;min-height:100vh}
+header{background:var(--rub);color:#fff;padding:18px 32px;display:flex;align-items:center;gap:16px}
+.rub-badge{background:#fff;color:var(--rub);font-family:'Crimson Pro',serif;font-weight:700;font-size:1.1rem;padding:4px 10px;border-radius:2px}
+header h1{font-family:'Crimson Pro',serif;font-size:1.35rem;font-weight:600}
+header p{font-size:.8rem;opacity:.7;margin-top:2px}
+
+.layout{display:grid;grid-template-columns:310px 1fr;height:calc(100vh - 72px)}
+
+.controls{background:#fff;border-right:1px solid var(--border);overflow-y:auto;padding:20px 16px}
+.st{font-family:'Crimson Pro',serif;font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.st:first-child{margin-top:0}
+
+label{display:block;font-size:.75rem;color:var(--muted);margin-bottom:3px;font-weight:700;letter-spacing:.04em}
+input[type=number]{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:5px;font-size:.86rem;font-family:'Atkinson Hyperlegible',sans-serif}
+input[type=number]:focus{outline:2px solid var(--rub);border-color:var(--rub)}
+input[type=range]{width:100%;accent-color:var(--rub);margin:5px 0 2px}
+
+.icc-block{background:var(--rub-light);border-radius:8px;padding:14px;margin-bottom:14px}
+.icc-block label{color:var(--rub)}
+.icc-disp{font-family:'Crimson Pro',serif;font-size:2.2rem;font-weight:700;color:var(--rub);text-align:center;line-height:1}
+.icc-disp small{font-size:1rem;font-weight:400;color:var(--muted)}
+
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.field{margin-bottom:10px}
+
+/* Formula chain */
+.chain{background:#f0f4f8;border-radius:8px;padding:12px;margin-top:14px}
+.chain-title{font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.chain-step{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:.82rem}
+.chain-badge{background:#fff;border:1px solid var(--border);border-radius:5px;padding:4px 10px;font-family:'Crimson Pro',serif;font-size:1rem;font-weight:700;min-width:70px;text-align:center}
+.chain-arrow{color:var(--muted);font-size:.8rem}
+.chain-formula{color:var(--muted);font-size:.75rem;font-style:italic}
+.chain-step.active .chain-badge{background:var(--rub);color:#fff;border-color:var(--rub)}
+
+.swc-ref{background:#fff8ee;border:1px solid #e0c870;border-radius:7px;padding:9px 12px;margin-top:12px;font-size:.78rem;color:#7a5010;line-height:1.5}
+.swc-ref strong{display:block;margin-bottom:3px}
+
+/* Viz */
+.viz{display:flex;flex-direction:column;padding:16px 20px;gap:12px;overflow:hidden}
+.metric-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex-shrink:0}
+.mc{background:#fff;border:1px solid var(--border);border-radius:9px;padding:12px 10px;text-align:center}
+.mc .v{font-family:'Crimson Pro',serif;font-size:2rem;font-weight:700;line-height:1}
+.mc .l{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:3px}
+.mc .sub{font-size:.68rem;color:var(--muted);font-style:italic;margin-top:2px}
+.mc.hl{background:var(--rub);border-color:var(--rub)}
+.mc.hl .v,.mc.hl .l,.mc.hl .sub{color:#fff}
+.mc.warn{background:#fff4e8;border-color:#e0a040}
+.mc.warn .v{color:var(--orange)}
+
+.tab-row{display:flex;gap:0;border-radius:6px;overflow:hidden;border:1px solid var(--border);width:fit-content;flex-shrink:0}
+.ctab{padding:7px 18px;font-size:.8rem;background:#fff;border:none;cursor:pointer;color:var(--muted);font-family:'Atkinson Hyperlegible',sans-serif}
+.ctab.active{background:var(--rub);color:#fff;font-weight:700}
+
+.canvas-wrap{flex:1;position:relative;min-height:180px}
+canvas#chart{position:absolute;top:0;left:0}
+
+.legend{display:flex;gap:14px;flex-shrink:0;font-size:.75rem;color:var(--muted);align-items:center;flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:5px}
+.ld{width:16px;height:4px;border-radius:2px}
+.verdict-note{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 14px;flex-shrink:0;font-size:.8rem;line-height:1.5;color:var(--muted)}
+.verdict-note span{font-weight:700}
+</style>
+</head>
+<body>
+<header>
+  <span class="rub-badge">RUB</span>
+  <div>
+    <h1>Modul C — Messfehler, SEM &amp; MDC</h1>
+    <p>Leistungssteuerung (Modul 13) · UE 4 · SoSe 2026</p>
+  </div>
+</header>
+
+<div class="layout">
+<!-- Controls -->
+<div class="controls">
+  <div class="st">Reliabilität (Kernparameter)</div>
+  <div class="icc-block">
+    <label>ICC — INTRAKLASSENKORRELATION</label>
+    <input type="range" id="icc" min="0.50" max="0.995" step="0.005" value="0.90" oninput="update()">
+    <div class="icc-disp" id="icc-disp">0.90 <small>= gut</small></div>
+  </div>
+
+  <div class="st">Testparameter</div>
+  <div class="pgrid">
+    <div class="field"><label>SD BASELINE</label><input type="number" id="sd-base" value="5" step="0.1" min="0.1" oninput="update()"></div>
+    <div class="field"><label>MITTELWERT</label><input type="number" id="mean-base" value="40" step="1" oninput="update()"></div>
+  </div>
+
+  <div class="st">Simulation</div>
+  <div class="pgrid">
+    <div class="field"><label>N ATHLETEN</label><input type="number" id="n-ath" value="12" step="1" min="4" max="30" oninput="reseed()"></div>
+    <div class="field"><label>WAHRER EFFEKT (Δ)</label><input type="number" id="true-eff" value="3" step="0.5" oninput="reseed()"></div>
+  </div>
+  <button onclick="reseed()" style="width:100%;padding:8px;border-radius:5px;border:1px solid var(--border);background:var(--rub);color:#fff;cursor:pointer;font-family:'Atkinson Hyperlegible',sans-serif;font-size:.85rem">🔀 Neue Stichprobe</button>
+
+  <!-- Formula chain -->
+  <div class="chain">
+    <div class="chain-title">Berechnungskette</div>
+    <div class="chain-step">
+      <div class="chain-badge" id="c-icc">0.90</div>
+      <div class="chain-arrow">→</div>
+      <div><div style="font-weight:700">ICC</div><div class="chain-formula">Reliabilität</div></div>
+    </div>
+    <div class="chain-step">
+      <div class="chain-badge" id="c-sem"></div>
+      <div class="chain-arrow">→</div>
+      <div><div style="font-weight:700">SEM</div><div class="chain-formula">SD × √(1 − ICC)</div></div>
+    </div>
+    <div class="chain-step active">
+      <div class="chain-badge" id="c-mdc"></div>
+      <div class="chain-arrow">→</div>
+      <div><div style="font-weight:700">MDC₉₅</div><div class="chain-formula">SEM × 1,96 × √2</div></div>
+    </div>
+  </div>
+
+  <div class="swc-ref" id="swc-ref-box">
+    <strong>Vergleich: SWC</strong>
+    SWC = 0,2 × SD = <span id="swc-ref-val" style="font-weight:700;color:var(--orange)">1.00</span><br>
+    <span id="swc-ref-msg" style="font-size:.72rem">MDC &gt; SWC → Messfehler übertönt den kleinsten relevanten Effekt!</span>
+  </div>
+</div>
+
+<!-- Viz -->
+<div class="viz">
+  <div class="metric-row">
+    <div class="mc"><div class="v" id="m-sem"></div><div class="l">SEM</div><div class="sub">Std. Error of Measurement</div></div>
+    <div class="mc hl"><div class="v" id="m-mdc"></div><div class="l">MDC₉₅</div><div class="sub">Minimale echte Änderung</div></div>
+    <div class="mc warn"><div class="v" id="m-cv"></div><div class="l">CV%</div><div class="sub">Variationskoeffizient</div></div>
+    <div class="mc"><div class="v" id="m-resp"></div><div class="l">Über MDC</div><div class="sub">echte Veränderung erkennbar</div></div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+    <div class="tab-row">
+      <button class="ctab active" onclick="setTab('strip')">Entscheidungsdiagramm</button>
+      <button class="ctab" onclick="setTab('dist')">Verteilungen</button>
+      <button class="ctab" onclick="setTab('icc-band')">ICC-Sensitivität</button>
+    </div>
+    <div style="font-size:.74rem;color:var(--muted)" id="tab-hint">Δ jedes Athleten vs. MDC-Schwelle</div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="legend">
+    <div class="li"><div class="ld" style="background:var(--green)"></div><span>Echte Verbesserung (Δ &gt; MDC)</span></div>
+    <div class="li"><div class="ld" style="background:#b0b8c8"></div><span>Nicht eindeutig (|Δ| ≤ MDC)</span></div>
+    <div class="li"><div class="ld" style="background:var(--red)"></div><span>Echte Verschlechterung (Δ &lt; −MDC)</span></div>
+    <div class="li" style="margin-left:auto"><div class="ld" style="background:var(--orange);height:2px;border-top:2px dashed var(--orange)"></div><span>SWC-Referenz</span></div>
+  </div>
+
+  <div class="verdict-note" id="verdict"></div>
+</div>
+</div>
+
+<script>
+let tab='strip', seed=42, simData=[];
+
+function splitmix32(s){return function(){s|=0;s=s+0x9e3779b9|0;let t=s^s>>>16;t=Math.imul(t,0x21f0aaad);t=t^t>>>15;t=Math.imul(t,0x735a2d97);return((t=t^t>>>15)>>>0)/4294967296};}
+let rng=splitmix32(seed);
+function bm(){let u,v;do{u=rng();v=rng();}while(u===0);return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function reseed(){seed=Math.floor(Math.random()*999999);rng=splitmix32(seed);genData();}
+
+function getParams(){
+  const icc=parseFloat(document.getElementById('icc').value)||0.9;
+  const sdBase=parseFloat(document.getElementById('sd-base').value)||5;
+  const meanBase=parseFloat(document.getElementById('mean-base').value)||40;
+  const n=parseInt(document.getElementById('n-ath').value)||12;
+  const trueEff=parseFloat(document.getElementById('true-eff').value)||0;
+  const sem=sdBase*Math.sqrt(1-icc);
+  const mdc=sem*1.96*Math.sqrt(2);
+  const swc=0.2*sdBase;
+  const cv=(sem/meanBase)*100;
+  return{icc,sdBase,meanBase,n,trueEff,sem,mdc,swc,cv};
+}
+
+function genData(){
+  const {n,meanBase,sdBase,trueEff,sem}=getParams();
+  rng=splitmix32(seed);
+  simData=[];
+  for(let i=0;i<n;i++){
+    const truePre=meanBase+bm()*sdBase*0.8;
+    const truePost=truePre+trueEff;
+    // Measured with SEM noise on each measurement
+    const mPre=truePre+bm()*sem;
+    const mPost=truePost+bm()*sem;
+    simData.push({pre:mPre,post:mPost,delta:mPost-mPre,trueDelta:trueEff});
+  }
+  update();
+}
+
+function iccLabel(icc){
+  if(icc>=0.95)return'exzellent';
+  if(icc>=0.90)return'gut';
+  if(icc>=0.75)return'akzeptabel';
+  return'schlecht';
+}
+
+function update(){
+  const p=getParams();
+  // ICC display
+  document.getElementById('icc-disp').innerHTML=`${p.icc.toFixed(3)} <small>= ${iccLabel(p.icc)}</small>`;
+  // Formula chain
+  document.getElementById('c-icc').textContent=p.icc.toFixed(3);
+  document.getElementById('c-sem').textContent=p.sem.toFixed(2);
+  document.getElementById('c-mdc').textContent=p.mdc.toFixed(2);
+  // Metrics
+  document.getElementById('m-sem').textContent=p.sem.toFixed(2);
+  document.getElementById('m-mdc').textContent=p.mdc.toFixed(2);
+  document.getElementById('m-cv').textContent=p.cv.toFixed(1)+'%';
+  document.getElementById('swc-ref-val').textContent=p.swc.toFixed(2);
+  // SWC-Ref Box dynamisch färben und Text aktualisieren
+  const swcBox=document.getElementById('swc-ref-box');
+  const swcMsg=document.getElementById('swc-ref-msg');
+  if(p.mdc>p.swc){
+    swcBox.style.cssText='background:#fff0f0;border:1px solid #d04040;border-radius:7px;padding:9px 12px;margin-top:12px;font-size:.78rem;color:#7a1010;line-height:1.5';
+    swcMsg.textContent='MDC > SWC → Messfehler übertönt den kleinsten relevanten Effekt!';
+  } else {
+    swcBox.style.cssText='background:#f0fff4;border:1px solid #40a060;border-radius:7px;padding:9px 12px;margin-top:12px;font-size:.78rem;color:#104020;line-height:1.5';
+    swcMsg.textContent='MDC < SWC → Test präzise genug für individuelle Diagnose. ✓';
+  }
+
+  if(simData.length===0) genData();
+
+  const aboveMDC=simData.filter(d=>d.delta>p.mdc).length;
+  const belowMDC=simData.filter(d=>d.delta<-p.mdc).length;
+  const n=simData.length;
+  document.getElementById('m-resp').textContent=aboveMDC+'/'+n;
+
+  // Warning color for MDC > SWC
+  const mdcCard=document.getElementById('m-mdc').closest('.mc');
+  if(p.mdc>p.swc){mdcCard.style.background='#faeaea';mdcCard.style.borderColor='#c04040';document.getElementById('m-mdc').style.color='var(--red)';}
+  else{mdcCard.style.background='var(--rub)';mdcCard.style.borderColor='var(--rub)';document.getElementById('m-mdc').style.color='#fff';}
+
+  // Verdict
+  const rPct=Math.round(aboveMDC/n*100);
+  const mdcGtSwc=p.mdc>p.swc;
+  document.getElementById('verdict').innerHTML=
+    `<span>Wahrer Effekt: ${p.trueEff>=0?'+':''}${p.trueEff.toFixed(1)} | MDC₉₅: ${p.mdc.toFixed(2)} | SWC: ${p.swc.toFixed(2)}</span>`+
+    (mdcGtSwc?'&ensp;<span style="color:var(--red)">⚠ MDC &gt; SWC: Der Messfehler übertrifft den kleinsten relevanten Effekt — individuelle Aussagen kaum möglich.</span>':
+    `&ensp;${rPct}% der Athleten zeigen eine über den Messfehler hinausgehende Veränderung. ` +
+    `${p.mdc>Math.abs(p.trueEff)?'<span style="color:var(--orange)">Wahrer Effekt liegt innerhalb der MDC-Zone — typischerweise schwer zu detektieren.</span>':''}`);
+
+  drawChart(p);
+}
+
+// ── Charts ──
+function setTab(t){
+  tab=t;
+  document.querySelectorAll('.ctab').forEach((b,i)=>{b.classList.toggle('active',['strip','dist','icc-band'][i]===t);});
+  const hints={strip:'Δ jedes Athleten vs. MDC-Schwelle',dist:'Rausch- vs. Effekt-Verteilung: Wann ist Δ erkennbar?','icc-band':'MDC-Bandbreite bei unterschiedlichen ICC-Werten'};
+  document.getElementById('tab-hint').textContent=hints[t];
+  update();
+}
+
+function getCanvas(){
+  const canvas=document.getElementById('chart');
+  const wrap=canvas.parentElement;
+  const W=wrap.clientWidth,H=wrap.clientHeight;
+  canvas.width=W*devicePixelRatio;canvas.height=H*devicePixelRatio;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(devicePixelRatio,devicePixelRatio);
+  return{ctx,W,H};
+}
+
+function normalPDF(x,m,s){return Math.exp(-0.5*((x-m)/s)**2)/(s*Math.sqrt(2*Math.PI));}
+function erf(x){const t=1/(1+0.3275911*Math.abs(x));const p=t*(0.254829592+t*(-0.284496736+t*(1.421413741+t*(-1.453152027+t*1.061405429))));const r=1-p*Math.exp(-x*x);return x>=0?r:-r;}
+function Phi(z){return 0.5*(1+erf(z/Math.sqrt(2)));}
+
+function drawChart(p){
+  if(tab==='strip') drawStrip(p);
+  else if(tab==='dist') drawDist(p);
+  else drawICCBand(p);
+}
+
+function drawStrip(p){
+  const {ctx,W,H}=getCanvas();
+  const{mdc,swc,trueEff}=p;
+  const PAD={l:52,r:24,t:30,b:44};
+  const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b;
+  ctx.clearRect(0,0,W,H);
+
+  const deltas=simData.map(d=>d.delta);
+  const maxAbs=Math.max(mdc*2.5,Math.abs(trueEff)*1.8,...deltas.map(d=>Math.abs(d)))*1.1||1;
+  const xMin=-maxAbs,xMax=maxAbs;
+  const tx=x=>PAD.l+(x-xMin)/(xMax-xMin)*cW;
+  const baseline=PAD.t+cH*0.5; // center
+
+  // MDC shaded zone
+  const mdcL=tx(-mdc),mdcR=tx(mdc);
+  ctx.fillStyle='rgba(180,190,200,0.22)';
+  ctx.fillRect(mdcL,PAD.t,mdcR-mdcL,cH);
+  ctx.strokeStyle='#8090a0';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+  for(const x of [mdcL,mdcR]){ctx.beginPath();ctx.moveTo(x,PAD.t);ctx.lineTo(x,PAD.t+cH);ctx.stroke();}
+  ctx.setLineDash([]);
+  ctx.fillStyle='#8090a0';ctx.font="10px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+  ctx.fillText('−MDC',mdcL,PAD.t+11);ctx.fillText('+MDC',mdcR,PAD.t+11);
+
+  // SWC lines
+  for(const sv of [swc,-swc]){
+    const x=tx(sv);
+    ctx.strokeStyle='#d06010';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(x,PAD.t+20);ctx.lineTo(x,PAD.t+cH);ctx.stroke();
+    ctx.setLineDash([]);
+    if(sv>0){ctx.fillStyle='#d06010';ctx.textAlign='left';ctx.font="9px 'Atkinson Hyperlegible',sans-serif";ctx.fillText('SWC',x+2,PAD.t+20);}
+  }
+
+  // Zero line
+  const x0=tx(0);
+  ctx.strokeStyle='#6a7a8a';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(x0,PAD.t);ctx.lineTo(x0,PAD.t+cH);ctx.stroke();
+  ctx.fillStyle='#6a7a8a';ctx.font="10px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+  ctx.fillText('0',x0,PAD.t+cH+14);
+
+  // True effect marker
+  if(Math.abs(trueEff)>0.01){
+    const xt=tx(trueEff);
+    ctx.strokeStyle='#003560';ctx.lineWidth=2;ctx.setLineDash([2,2]);
+    ctx.beginPath();ctx.moveTo(xt,PAD.t);ctx.lineTo(xt,PAD.t+cH);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#003560';ctx.font="bold 10px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+    ctx.fillText('Δ_wahr',xt,PAD.t+24);
+  }
+
+  // Athlete dots (jittered vertically)
+  const N=simData.length;
+  for(let i=0;i<N;i++){
+    const d=simData[i];
+    const col=d.delta>mdc?'#3a7a35':d.delta<-mdc?'#b03020':'#8090a0';
+    const jy=baseline+(i-N/2)*((cH*0.55)/N);
+    const x=tx(d.delta);
+    // Line from center to dot
+    ctx.strokeStyle=col+'50';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x,baseline);ctx.lineTo(x,jy);ctx.stroke();
+    ctx.beginPath();ctx.arc(x,jy,5,0,Math.PI*2);
+    ctx.fillStyle=col+'cc';ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();
+    // Δ label
+    ctx.fillStyle=col;ctx.font="bold 9px 'Atkinson Hyperlegible',sans-serif";
+    const anchor=x>W/2?'right':'left';
+    ctx.textAlign=anchor;
+    ctx.fillText((d.delta>=0?'+':'')+d.delta.toFixed(1),x+(anchor==='left'?7:-7),jy+3);
+  }
+
+  // X-axis
+  ctx.strokeStyle='#d0d8e0';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(PAD.l,PAD.t+cH);ctx.lineTo(W-PAD.r,PAD.t+cH);ctx.stroke();
+  const tickVals=[-2,-1,0,1,2].map(z=>z*mdc);
+  ctx.font="10px 'Atkinson Hyperlegible',sans-serif";ctx.fillStyle='#8090a0';
+  for(const v of tickVals){
+    const x=tx(v);if(x<PAD.l||x>W-PAD.r)continue;
+    ctx.textAlign='center';ctx.fillText((v>=0?'+':'')+v.toFixed(1),x,PAD.t+cH+14);
+    ctx.strokeStyle='#c0c8d0';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(x,PAD.t+cH);ctx.lineTo(x,PAD.t+cH+4);ctx.stroke();
+  }
+  ctx.fillStyle='#6a7a8a';ctx.font="11px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+  ctx.fillText('Gemessenes Δ (Pre→Post)',W/2,PAD.t+cH+32);
+}
+
+function drawDist(p){
+  const{ctx,W,H}=getCanvas();
+  const{sem,mdc,swc,trueEff}=p;
+  const sdNoise=sem*Math.sqrt(2); // SD of measured delta under null
+  const PAD={l:52,r:24,t:24,b:44};
+  const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b;
+  ctx.clearRect(0,0,W,H);
+
+  const xRange=Math.max(mdc*3,Math.abs(trueEff)+sdNoise*3)*1.2;
+  const xMin=-xRange,xMax=xRange;
+  const tx=x=>PAD.l+(x-xMin)/(xMax-xMin)*cW;
+  const baseline=PAD.t+cH;
+
+  const N=400;
+  const xs=Array.from({length:N+1},(_,i)=>xMin+(i/N)*(xMax-xMin));
+
+  // y range
+  const yMax=Math.max(normalPDF(0,0,sdNoise),normalPDF(trueEff,trueEff,sdNoise))*1.15;
+  const ty=y=>PAD.t+cH-(y/yMax)*cH;
+
+  // MDC zone
+  const mdcL=tx(-mdc),mdcR=tx(mdc);
+  ctx.fillStyle='rgba(180,190,200,0.18)';
+  ctx.fillRect(mdcL,PAD.t,mdcR-mdcL,cH);
+
+  // Noise distribution (null: true Δ = 0)
+  ctx.beginPath();
+  ctx.moveTo(tx(xs[0]),baseline);
+  xs.forEach(x=>ctx.lineTo(tx(x),ty(normalPDF(x,0,sdNoise))));
+  ctx.lineTo(tx(xs[xs.length-1]),baseline);ctx.closePath();
+  ctx.fillStyle='rgba(128,144,160,0.2)';ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(tx(xs[0]),ty(normalPDF(xs[0],0,sdNoise)));
+  xs.forEach(x=>ctx.lineTo(tx(x),ty(normalPDF(x,0,sdNoise))));
+  ctx.strokeStyle='#8090a0';ctx.lineWidth=2;ctx.stroke();
+
+  // Effect distribution (if trueEff ≠ 0)
+  if(Math.abs(trueEff)>0.01){
+    ctx.beginPath();
+    ctx.moveTo(tx(xs[0]),baseline);
+    xs.forEach(x=>ctx.lineTo(tx(x),ty(normalPDF(x,trueEff,sdNoise))));
+    ctx.lineTo(tx(xs[xs.length-1]),baseline);ctx.closePath();
+    ctx.fillStyle='rgba(0,53,96,0.15)';ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(tx(xs[0]),ty(normalPDF(xs[0],trueEff,sdNoise)));
+    xs.forEach(x=>ctx.lineTo(tx(x),ty(normalPDF(x,trueEff,sdNoise))));
+    ctx.strokeStyle='#003560';ctx.lineWidth=2.5;ctx.stroke();
+  }
+
+  // MDC vertical lines
+  ctx.strokeStyle='#8090a0';ctx.lineWidth=1.5;ctx.setLineDash([5,3]);
+  for(const v of [-mdc,mdc]){
+    ctx.beginPath();ctx.moveTo(tx(v),PAD.t);ctx.lineTo(tx(v),baseline);ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // SWC lines
+  ctx.strokeStyle='#d06010';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  for(const v of [-swc,swc]){
+    if(tx(v)<PAD.l||tx(v)>W-PAD.r)continue;
+    ctx.beginPath();ctx.moveTo(tx(v),PAD.t+10);ctx.lineTo(tx(v),baseline);ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Zero line
+  ctx.strokeStyle='#b0b8c0';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(tx(0),PAD.t);ctx.lineTo(tx(0),baseline);ctx.stroke();
+
+  // Axes
+  ctx.strokeStyle='#d0d8e0';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(PAD.l,baseline);ctx.lineTo(W-PAD.r,baseline);ctx.stroke();
+
+  // Labels
+  ctx.font="11px 'Atkinson Hyperlegible',sans-serif";
+  const ticks=[-2,-1,0,1,2].map(z=>z*sdNoise);
+  for(const v of ticks){
+    const x=tx(v);if(x<PAD.l||x>W-PAD.r)continue;
+    ctx.fillStyle='#8090a0';ctx.textAlign='center';
+    ctx.fillText((v>=0?'+':'')+v.toFixed(1),x,baseline+14);
+  }
+
+  // Annotations
+  ctx.font="bold 11px 'Atkinson Hyperlegible',sans-serif";
+  ctx.fillStyle='#8090a0';ctx.textAlign='center';
+  ctx.fillText('Nur Messfehler (Δ_wahr = 0)',tx(0),ty(normalPDF(0,0,sdNoise))-8);
+  if(Math.abs(trueEff)>0.01){
+    ctx.fillStyle='#003560';
+    ctx.fillText(`Echter Effekt (Δ = ${trueEff>=0?'+':''}${trueEff.toFixed(1)})`,tx(trueEff),ty(normalPDF(trueEff,trueEff,sdNoise))-8);
+  }
+  ctx.fillStyle='#8090a0';ctx.font="10px 'Atkinson Hyperlegible',sans-serif";
+  ctx.fillText('−MDC',tx(-mdc),PAD.t+10);ctx.fillText('+MDC',tx(mdc),PAD.t+10);
+  ctx.fillStyle='#6a7a8a';ctx.font="11px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+  ctx.fillText('Gemessenes Δ',W/2,baseline+32);
+
+  // Power annotation
+  const power=1-Phi((mdc-trueEff)/sdNoise)+Phi((-mdc-trueEff)/sdNoise);
+  ctx.fillStyle='#003560';ctx.font="bold 12px 'Crimson Pro',serif";ctx.textAlign='right';
+  ctx.fillText(`Detektionsrate ≈ ${Math.round(power*100)}%`,W-PAD.r,PAD.t+18);
+}
+
+function drawICCBand(p){
+  const{ctx,W,H}=getCanvas();
+  const PAD={l:80,r:30,t:30,b:44};
+  const cW=W-PAD.l-PAD.r,cH=H-PAD.t-PAD.b;
+  ctx.clearRect(0,0,W,H);
+
+  const iccVals=[0.55,0.65,0.70,0.75,0.80,0.85,0.90,0.92,0.95,0.98,0.99];
+  const sdBase=p.sdBase;
+  const mdcs=iccVals.map(icc=>sdBase*Math.sqrt(1-icc)*1.96*Math.sqrt(2));
+  const maxMDC=Math.max(...mdcs)*1.1;
+
+  const tx=icc=>PAD.l+(icc-0.5)/0.5*cW;
+  const ty=mdc=>PAD.t+cH-(mdc/maxMDC)*cH;
+
+  // Grid
+  ctx.font="10px 'Atkinson Hyperlegible',sans-serif";
+  const nTicks=5;
+  for(let i=0;i<=nTicks;i++){
+    const mdc=(maxMDC*i/nTicks);
+    const y=ty(mdc);
+    ctx.strokeStyle='#e8eef4';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(W-PAD.r,y);ctx.stroke();
+    ctx.fillStyle='#8090a0';ctx.textAlign='right';ctx.fillText(mdc.toFixed(1),PAD.l-5,y+4);
+  }
+
+  // SWC reference line
+  const ySWC=ty(p.swc);
+  ctx.strokeStyle='#d06010';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(PAD.l,ySWC);ctx.lineTo(W-PAD.r,ySWC);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#d06010';ctx.font="10px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='left';
+  ctx.fillText('SWC = '+p.swc.toFixed(2),PAD.l+4,ySWC-4);
+
+  // MDC curve (fill under)
+  ctx.beginPath();
+  ctx.moveTo(tx(iccVals[0]),ty(0));
+  iccVals.forEach((icc,i)=>ctx.lineTo(tx(icc),ty(mdcs[i])));
+  ctx.lineTo(tx(iccVals[iccVals.length-1]),ty(0));ctx.closePath();
+  ctx.fillStyle='rgba(0,53,96,0.08)';ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(tx(iccVals[0]),ty(mdcs[0]));
+  iccVals.forEach((icc,i)=>ctx.lineTo(tx(icc),ty(mdcs[i])));
+  ctx.strokeStyle='#003560';ctx.lineWidth=2.5;ctx.stroke();
+
+  // Current ICC marker
+  const curMDC=p.mdc;
+  const curX=tx(p.icc),curY=ty(curMDC);
+  ctx.beginPath();ctx.arc(curX,curY,7,0,Math.PI*2);
+  ctx.fillStyle='#e84a0c';ctx.fill();
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#e84a0c';ctx.font="bold 11px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+  ctx.fillText(`ICC=${p.icc.toFixed(2)}`,curX,curY-14);
+  ctx.fillText(`MDC=${curMDC.toFixed(2)}`,curX,curY-26);
+
+  // Dot labels
+  iccVals.forEach((icc,i)=>{
+    const x=tx(icc),y=ty(mdcs[i]);
+    ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fillStyle='#003560';ctx.fill();
+    ctx.fillStyle='#003560';ctx.font="9px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+    ctx.fillText(icc.toFixed(2),x,y-8);
+  });
+
+  // Axes
+  ctx.strokeStyle='#d0d8e0';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(PAD.l,PAD.t+cH);ctx.lineTo(W-PAD.r,PAD.t+cH);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(PAD.l,PAD.t);ctx.lineTo(PAD.l,PAD.t+cH);ctx.stroke();
+  ctx.fillStyle='#6a7a8a';ctx.font="11px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+  ctx.fillText('ICC →',W/2,PAD.t+cH+30);
+  ctx.save();ctx.rotate(-Math.PI/2);
+  ctx.fillText('MDC₉₅ →',-H/2,14);
+  ctx.restore();
+
+  // Shade: danger zone (MDC > SWC)
+  const iccCrit=1-((p.swc/(1.96*Math.sqrt(2)*sdBase))**2);
+  if(iccCrit>0.5&&iccCrit<1){
+    const xCrit=tx(Math.min(iccCrit,0.999));
+    ctx.fillStyle='rgba(180,40,20,0.06)';
+    ctx.fillRect(PAD.l,PAD.t,xCrit-PAD.l,cH);
+    ctx.fillStyle='rgba(180,40,20,0.6)';ctx.font="10px 'Atkinson Hyperlegible',sans-serif";ctx.textAlign='center';
+    ctx.fillText('MDC > SWC',(PAD.l+xCrit)/2,PAD.t+18);
+  }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  genData();
+  window.addEventListener('resize',update);
+});
+</script>
+</body>
+</html>

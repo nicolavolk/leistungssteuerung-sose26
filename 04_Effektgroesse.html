@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modul D — Effektgröße</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --rub:#003560;--rub-dark:#002040;--rub-light:#e8eef4;
+  --orange:#e07030;--green:#3a7a35;--muted:#5a6a7a;
+  --border:#d0d8e0;--bg:#f8f9fb;
+  --col-a:#003560;--col-b:#c05010;
+}
+body{font-family:'Atkinson Hyperlegible',sans-serif;background:var(--bg);color:#1a2332;min-height:100vh}
+header{background:var(--rub);color:#fff;padding:18px 32px;display:flex;align-items:center;gap:16px}
+.rub-badge{background:#fff;color:var(--rub);font-family:'Crimson Pro',serif;font-weight:700;font-size:1.1rem;padding:4px 10px;border-radius:2px;letter-spacing:.05em}
+header h1{font-family:'Crimson Pro',serif;font-size:1.35rem;font-weight:600;letter-spacing:.02em}
+header p{font-size:.8rem;opacity:.7;margin-top:2px}
+
+.layout{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 72px)}
+
+.controls{background:#fff;border-right:1px solid var(--border);overflow-y:auto;padding:24px 20px}
+.section-title{font-family:'Crimson Pro',serif;font-size:.75rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+.mode-toggle{display:flex;margin-bottom:18px;border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+.mode-btn{flex:1;padding:8px 0;font-family:'Atkinson Hyperlegible',sans-serif;font-size:.82rem;background:#fff;border:none;cursor:pointer;color:var(--muted);transition:.15s}
+.mode-btn.active{background:var(--rub);color:#fff;font-weight:700}
+
+.framing-toggle{display:flex;margin-bottom:16px;border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+.framing-btn{flex:1;padding:6px 0;font-size:.78rem;background:#fff;border:none;cursor:pointer;color:var(--muted);transition:.15s}
+.framing-btn.active{background:#4a6a8a;color:#fff;font-weight:700}
+
+.field{margin-bottom:12px}
+label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:4px;font-weight:700;letter-spacing:.04em}
+input[type=number],input[type=range]{font-family:'Atkinson Hyperlegible',sans-serif}
+input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:5px;font-size:.88rem;background:#fff;color:#1a2332}
+input[type=number]:focus{outline:2px solid var(--rub);border-color:var(--rub)}
+
+.group-block{border-radius:8px;padding:12px;margin-bottom:12px}
+.group-a{background:#e8eef4;border-left:3px solid var(--col-a)}
+.group-b{background:#faeae0;border-left:3px solid var(--col-b)}
+.group-label{font-size:.8rem;font-weight:700;margin-bottom:8px}
+.group-label.a{color:var(--col-a)}
+.group-label.b{color:var(--col-b)}
+.group-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+/* Simulation mode */
+.sim-block{background:var(--rub-light);border-radius:8px;padding:14px;margin-bottom:14px}
+.sim-block label{color:var(--rub)}
+.sim-block input[type=range]{width:100%;accent-color:var(--rub);margin:6px 0}
+.d-display{font-family:'Crimson Pro',serif;font-size:2rem;font-weight:700;color:var(--rub);text-align:center;margin:4px 0}
+
+.hedges-box{background:#fff8e8;border:1px solid #e0c870;border-radius:7px;padding:10px 12px;margin-top:14px;font-size:.78rem;color:#6a5010;line-height:1.5}
+.hedges-box strong{display:block;margin-bottom:3px;font-size:.82rem}
+.hedges-val{font-family:'Crimson Pro',serif;font-size:1.2rem;font-weight:700;color:#8a5800}
+
+.interp-guide{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
+.interp-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:.78rem}
+.interp-bar{height:10px;border-radius:3px;flex-shrink:0}
+.interp-text b{display:block;font-size:.8rem}
+
+/* Viz */
+.viz{display:flex;flex-direction:column;padding:20px 24px;overflow:hidden}
+.result-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:18px}
+.result-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}
+.result-card .val{font-family:'Crimson Pro',serif;font-size:2.2rem;font-weight:700;line-height:1}
+.result-card .lbl{font-size:.68rem;color:var(--muted);margin-top:3px;letter-spacing:.06em;text-transform:uppercase}
+.result-card .sublbl{font-size:.65rem;color:var(--muted);margin-top:2px;font-style:italic}
+.result-card.highlight{border-color:var(--rub);background:var(--rub)}
+.result-card.highlight .val,.result-card.highlight .lbl{color:#fff}
+.result-card.highlight .sublbl{color:rgba(255,255,255,.6)}
+
+.canvas-wrap{flex:1;position:relative;min-height:200px}
+canvas#chart{position:absolute;top:0;left:0}
+
+.legend{display:flex;gap:20px;justify-content:center;margin-top:10px}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted)}
+.leg-dot{width:14px;height:4px;border-radius:2px}
+.cles-note{font-size:.78rem;color:var(--muted);text-align:center;margin-top:6px;font-style:italic}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="rub-badge">RUB</span>
+  <div>
+    <h1>Modul D — Effektgröße: Cohen's d &amp; Hedges' g</h1>
+    <p>Leistungssteuerung (Modul 13) · UE 4 · SoSe 2026</p>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- ── Controls ── -->
+  <div class="controls">
+    <div class="section-title">Eingabemodus</div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btn-sim" onclick="setMode('sim')">Simulation</button>
+      <button class="mode-btn" id="btn-man" onclick="setMode('man')">Manuell</button>
+    </div>
+
+    <!-- Framing -->
+    <div class="section-title">Vergleich</div>
+    <div class="framing-toggle">
+      <button class="framing-btn active" id="fr-groups" onclick="setFraming('groups')">Zwei Gruppen</button>
+      <button class="framing-btn" id="fr-prepost" onclick="setFraming('prepost')">Pre–Post</button>
+    </div>
+
+    <!-- Simulation mode -->
+    <div id="sim-panel">
+      <div class="sim-block">
+        <label>COHEN'S d (Effektgröße)</label>
+        <input type="range" id="sim-d" min="-3" max="3" step="0.05" value="0.8" oninput="onSimChange()">
+        <div class="d-display" id="sim-d-disp">d = +0.80</div>
+      </div>
+      <div class="field">
+        <label>SD DER GRUPPEN</label>
+        <div class="mode-toggle" style="margin-bottom:0">
+          <button class="mode-btn active" id="sd-eq" onclick="setSDMode('equal')">Gleich</button>
+          <button class="mode-btn" id="sd-uneq" onclick="setSDMode('unequal')">Unterschiedlich</button>
+        </div>
+      </div>
+      <div id="sd-unequal-panel" style="display:none">
+        <div class="group-grid" style="margin-top:8px">
+          <div class="field"><label style="color:var(--col-a)">SD_A</label><input type="number" id="sim-sdA" value="1" step="0.05" min="0.1" oninput="onSimChange()"></div>
+          <div class="field"><label style="color:var(--col-b)">SD_B</label><input type="number" id="sim-sdB" value="1" step="0.05" min="0.1" oninput="onSimChange()"></div>
+          <div class="field"><label>n (je)</label><input type="number" id="sim-n" value="10" step="1" min="2" oninput="onSimChange()"></div>
+        </div>
+      </div>
+      <div id="sd-equal-n" style="margin-top:8px">
+        <div class="field"><label>STICHPROBENGRÖSSE n (je Gruppe)</label><input type="number" id="sim-n-eq" value="10" step="1" min="2" oninput="onSimChange()"></div>
+      </div>
+    </div>
+
+    <!-- Manual mode -->
+    <div id="man-panel" style="display:none">
+      <div class="group-block group-a">
+        <div class="group-label a" id="lbl-a">Gruppe A (Kontrolle)</div>
+        <div class="group-grid">
+          <div class="field"><label>M</label><input type="number" id="mA" value="40" step="0.5" oninput="update()"></div>
+          <div class="field"><label>SD</label><input type="number" id="sdA" value="5" step="0.1" min="0.1" oninput="update()"></div>
+          <div class="field"><label>n</label><input type="number" id="nA" value="10" step="1" min="2" oninput="update()"></div>
+        </div>
+      </div>
+      <div class="group-block group-b">
+        <div class="group-label b" id="lbl-b">Gruppe B (Intervention)</div>
+        <div class="group-grid">
+          <div class="field"><label>M</label><input type="number" id="mB" value="44" step="0.5" oninput="update()"></div>
+          <div class="field"><label>SD</label><input type="number" id="sdB" value="5" step="0.1" min="0.1" oninput="update()"></div>
+          <div class="field"><label>n</label><input type="number" id="nB" value="10" step="1" min="2" oninput="update()"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hedges g box -->
+    <div class="hedges-box">
+      <strong>Hedges' g (Korrektur für kleine Stichproben)</strong>
+      g = d × J(df) &nbsp;|&nbsp; J = 1 − 3 / (4·df − 1)<br>
+      df = n_A + n_B − 2<br>
+      <span style="margin-top:4px;display:block">g = <span class="hedges-val" id="hedges-val">+0.76</span>&nbsp;<span id="hedges-note" style="font-size:.72rem;font-style:italic"></span></span>
+    </div>
+
+    <!-- Interpretation guide -->
+    <div class="interp-guide">
+      <div class="section-title">Konventionen (Cohen 1988)</div>
+      <div class="interp-row"><div class="interp-bar" style="width:30px;background:#c8d8e8"></div><div class="interp-text"><b>Trivial: |d| &lt; 0.2</b>Kein praktisch bedeutsamer Unterschied</div></div>
+      <div class="interp-row"><div class="interp-bar" style="width:45px;background:#7ab0d0"></div><div class="interp-text"><b>Klein: 0.2 ≤ |d| &lt; 0.5</b>Sichtbarer, aber kleiner Effekt</div></div>
+      <div class="interp-row"><div class="interp-bar" style="width:60px;background:#3a7aa8"></div><div class="interp-text"><b>Mittel: 0.5 ≤ |d| &lt; 0.8</b>Praktisch bedeutsam</div></div>
+      <div class="interp-row"><div class="interp-bar" style="width:75px;background:#003560"></div><div class="interp-text"><b>Groß: |d| ≥ 0.8</b>Deutlicher, klar wahrnehmbarer Effekt</div></div>
+    </div>
+  </div>
+
+  <!-- ── Visualization ── -->
+  <div class="viz">
+    <div class="result-row">
+      <div class="result-card highlight">
+        <div class="val" id="res-d">+0.80</div>
+        <div class="lbl">Cohen's d</div>
+        <div class="sublbl" id="res-interp-short">Großer Effekt</div>
+      </div>
+      <div class="result-card">
+        <div class="val" id="res-ovl">73%</div>
+        <div class="lbl">Überlappung</div>
+        <div class="sublbl">der Verteilungen</div>
+      </div>
+      <div class="result-card">
+        <div class="val" id="res-cles">71%</div>
+        <div class="lbl">CLES</div>
+        <div class="sublbl">Common Language ES</div>
+      </div>
+      <div class="result-card">
+        <div class="val" id="res-nnt" style="font-size:1.6rem;padding-top:6px">1 von 4</div>
+        <div class="lbl">NNT-Intuition</div>
+        <div class="sublbl">zeigen klaren Vorteil</div>
+      </div>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="chart"></canvas>
+    </div>
+
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:var(--col-a)"></div><span id="leg-a">Gruppe A</span></div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--col-b)"></div><span id="leg-b">Gruppe B</span></div>
+      <div class="leg-item"><div class="leg-dot" style="background:#8090b0;height:10px;border-radius:3px"></div><span>Überlappungsbereich</span></div>
+    </div>
+    <div class="cles-note" id="cles-note"></div>
+  </div>
+</div>
+
+<script>
+let mode = 'sim', sdMode = 'equal', framing = 'groups';
+
+// Math
+function erf(x){
+  const t=1/(1+0.3275911*Math.abs(x));
+  const p=t*(0.254829592+t*(-0.284496736+t*(1.421413741+t*(-1.453152027+t*1.061405429))));
+  const r=1-p*Math.exp(-x*x);
+  return x>=0?r:-r;
+}
+function Phi(z){return 0.5*(1+erf(z/Math.sqrt(2)))}
+function pdf(x,m,s){return Math.exp(-0.5*((x-m)/s)**2)/(s*Math.sqrt(2*Math.PI))}
+
+// Numerical overlap coefficient
+function overlapCoeff(mA,sdA,mB,sdB){
+  const xMin=Math.min(mA-5*sdA,mB-5*sdB);
+  const xMax=Math.max(mA+5*sdA,mB+5*sdB);
+  const N=2000;
+  let sum=0;
+  const dx=(xMax-xMin)/N;
+  for(let i=0;i<N;i++){
+    const x=xMin+(i+0.5)*dx;
+    sum+=Math.min(pdf(x,mA,sdA),pdf(x,mB,sdB))*dx;
+  }
+  return Math.min(1,sum*2); // OVL = 2 * integral of min
+}
+
+// CLES: P(X_B > X_A)
+function cles(mA,sdA,mB,sdB){
+  return Phi((mB-mA)/Math.sqrt(sdA*sdA+sdB*sdB));
+}
+
+function interpLabel(absd){
+  if(absd<0.2)return'Trivial';
+  if(absd<0.5)return'Kleiner Effekt';
+  if(absd<0.8)return'Mittlerer Effekt';
+  return'Großer Effekt';
+}
+
+function getParams(){
+  let mA,sdA,nA,mB,sdB,nB;
+  if(mode==='sim'){
+    const d=parseFloat(document.getElementById('sim-d').value)||0;
+    const sA=parseFloat(document.getElementById('sim-sdA')||{value:1})?.value||1;
+    const sB=parseFloat(document.getElementById('sim-sdB')||{value:1})?.value||1;
+    if(sdMode==='equal'){
+      sdA=1;sdB=1;nA=parseInt(document.getElementById('sim-n-eq').value)||10;nB=nA;
+    } else {
+      sdA=parseFloat(document.getElementById('sim-sdA').value)||1;
+      sdB=parseFloat(document.getElementById('sim-sdB').value)||1;
+      nA=parseInt(document.getElementById('sim-n').value)||10;nB=nA;
+    }
+    const sdPooled=Math.sqrt((sdA*sdA+sdB*sdB)/2);
+    mA=0; mB=d*sdPooled;
+  } else {
+    mA=parseFloat(document.getElementById('mA').value)||0;
+    sdA=Math.max(0.01,parseFloat(document.getElementById('sdA').value)||1);
+    nA=parseInt(document.getElementById('nA').value)||10;
+    mB=parseFloat(document.getElementById('mB').value)||0;
+    sdB=Math.max(0.01,parseFloat(document.getElementById('sdB').value)||1);
+    nB=parseInt(document.getElementById('nB').value)||10;
+  }
+  return{mA,sdA,nA,mB,sdB,nB};
+}
+
+function update(){
+  const {mA,sdA,nA,mB,sdB,nB}=getParams();
+  const sdPooled=Math.sqrt((sdA*sdA+sdB*sdB)/2);
+  const d=(mB-mA)/sdPooled;
+  const df=nA+nB-2;
+  const J=1-3/(4*df-1);
+  const g=d*J;
+  const ovl=overlapCoeff(mA,sdA,mB,sdB);
+  const cl=cles(mA,sdA,mB,sdB);
+
+  document.getElementById('res-d').textContent=(d>=0?'+':'')+d.toFixed(2);
+  document.getElementById('res-interp-short').textContent=interpLabel(Math.abs(d));
+  document.getElementById('res-ovl').textContent=Math.round(ovl*100)+'%';
+  document.getElementById('res-cles').textContent=Math.round(cl*100)+'%';
+
+  // NNT intuition: "X of Y show clear advantage" → P(B > A+0.5SD) roughly
+  const nntVal=Math.round(cl*100);
+  document.getElementById('res-nnt').textContent=nntVal+' von 100';
+
+  // Hedges g
+  document.getElementById('hedges-val').textContent=(g>=0?'+':'')+g.toFixed(2);
+  const diff=Math.abs(d-g);
+  document.getElementById('hedges-note').textContent=
+    diff<0.01?'(keine Korrektur nötig)':
+    `(Korrektur: ${diff<0?'+':''}${(g-d).toFixed(2)} gegenüber d)`;
+
+  // CLES note
+  const labA=framing==='prepost'?'Pre':'Gruppe A';
+  const labB=framing==='prepost'?'Post':'Gruppe B';
+  const clPct=Math.round(cl*100);
+  document.getElementById('cles-note').textContent=
+    `CLES: ${clPct}% der ${labB}-Werte übertreffen den Durchschnitt von ${labA} ` +
+    `— oder: Ein zufällig gewählter ${labB}-Wert ist mit ${clPct}% Wahrscheinlichkeit größer als ein ${labA}-Wert.`;
+
+  drawChart(mA,sdA,mB,sdB,d);
+}
+
+function drawChart(mA,sdA,mB,sdB,d){
+  const canvas=document.getElementById('chart');
+  const wrap=canvas.parentElement;
+  const W=wrap.clientWidth, H=wrap.clientHeight;
+  canvas.width=W*devicePixelRatio; canvas.height=H*devicePixelRatio;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(devicePixelRatio,devicePixelRatio);
+
+  const PAD={l:52,r:24,t:22,b:44};
+  const cW=W-PAD.l-PAD.r, cH=H-PAD.t-PAD.b;
+
+  const spread=Math.max(sdA,sdB)*4;
+  const xMin=Math.min(mA,mB)-spread;
+  const xMax=Math.max(mA,mB)+spread;
+  const yPeakA=pdf(mA,mA,sdA), yPeakB=pdf(mB,mB,sdB);
+  const yMax=Math.max(yPeakA,yPeakB)*1.18;
+
+  const tx=x=>PAD.l+(x-xMin)/(xMax-xMin)*cW;
+  const ty=y=>PAD.t+cH-(y/yMax)*cH;
+  const baseline=ty(0);
+
+  const N=500;
+  const xs=[]; for(let i=0;i<=N;i++) xs.push(xMin+(i/N)*(xMax-xMin));
+  const ptsA=xs.map(x=>({x,y:pdf(x,mA,sdA)}));
+  const ptsB=xs.map(x=>({x,y:pdf(x,mB,sdB)}));
+
+  ctx.clearRect(0,0,W,H);
+
+  // Overlap area (min of both pdfs)
+  ctx.beginPath();
+  ctx.moveTo(tx(xs[0]),baseline);
+  for(let i=0;i<xs.length;i++) ctx.lineTo(tx(xs[i]),ty(Math.min(ptsA[i].y,ptsB[i].y)));
+  ctx.lineTo(tx(xs[xs.length-1]),baseline);
+  ctx.closePath();
+  ctx.fillStyle='rgba(100,110,160,0.35)';
+  ctx.fill();
+
+  // Group A fill
+  ctx.beginPath();
+  ctx.moveTo(tx(xs[0]),baseline);
+  for(const p of ptsA) ctx.lineTo(tx(p.x),ty(p.y));
+  ctx.lineTo(tx(xs[xs.length-1]),baseline);
+  ctx.closePath();
+  ctx.fillStyle='rgba(0,53,96,0.12)';
+  ctx.fill();
+  // Group A line
+  ctx.beginPath();
+  ctx.moveTo(tx(ptsA[0].x),ty(ptsA[0].y));
+  for(const p of ptsA) ctx.lineTo(tx(p.x),ty(p.y));
+  ctx.strokeStyle='#003560';
+  ctx.lineWidth=2.5;
+  ctx.stroke();
+
+  // Group B fill
+  ctx.beginPath();
+  ctx.moveTo(tx(xs[0]),baseline);
+  for(const p of ptsB) ctx.lineTo(tx(p.x),ty(p.y));
+  ctx.lineTo(tx(xs[xs.length-1]),baseline);
+  ctx.closePath();
+  ctx.fillStyle='rgba(192,80,16,0.12)';
+  ctx.fill();
+  // Group B line
+  ctx.beginPath();
+  ctx.moveTo(tx(ptsB[0].x),ty(ptsB[0].y));
+  for(const p of ptsB) ctx.lineTo(tx(p.x),ty(p.y));
+  ctx.strokeStyle='#c05010';
+  ctx.lineWidth=2.5;
+  ctx.stroke();
+
+  // Mean lines
+  const drawMean=(x,col,lbl)=>{
+    const cx=tx(x);
+    ctx.beginPath(); ctx.moveTo(cx,baseline); ctx.lineTo(cx,ty(pdf(x,x===mA?mA:mB,x===mA?sdA:sdB))-4);
+    ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.setLineDash([5,3]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=col; ctx.font="bold 12px 'Atkinson Hyperlegible',sans-serif";
+    ctx.textAlign='center';
+    ctx.fillText(lbl,cx,ty(pdf(x,x===mA?mA:mB,x===mA?sdA:sdB))-10);
+  };
+  const labA=framing==='prepost'?'M_Pre':'M_A';
+  const labB=framing==='prepost'?'M_Post':'M_B';
+  drawMean(mA,'#003560',labA);
+  drawMean(mB,'#c05010',labB);
+
+  // d arrow
+  if(Math.abs(mB-mA)>0.01){
+    const y0=PAD.t+14;
+    const xFrom=tx(mA), xTo=tx(mB);
+    ctx.beginPath(); ctx.moveTo(xFrom,y0); ctx.lineTo(xTo,y0);
+    ctx.strokeStyle='#6a6a6a'; ctx.lineWidth=1.5; ctx.stroke();
+    // Arrowheads
+    for(const [start,end] of [[xFrom,xTo],[xTo,xFrom]]){
+      const dir=end>start?1:-1;
+      ctx.beginPath(); ctx.moveTo(end,y0);
+      ctx.lineTo(end-dir*7,y0-4); ctx.lineTo(end-dir*7,y0+4); ctx.closePath();
+      ctx.fillStyle='#6a6a6a'; ctx.fill();
+    }
+    ctx.fillStyle='#6a6a6a'; ctx.font="bold 12px 'Crimson Pro',serif";
+    ctx.textAlign='center';
+    const dVal=(mB-mA)/Math.sqrt((sdA*sdA+sdB*sdB)/2);
+    ctx.fillText('d = '+(dVal>=0?'+':'')+dVal.toFixed(2),(xFrom+xTo)/2,y0-8);
+  }
+
+  // Axis
+  ctx.strokeStyle='#b0bec8'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(PAD.l,baseline); ctx.lineTo(W-PAD.r,baseline); ctx.stroke();
+
+  // X-axis labels
+  const tickVals=[-3,-2,-1,0,1,2,3].map(z=>mA+z*sdA); // relative to A
+  ctx.font="11px 'Atkinson Hyperlegible',sans-serif";
+  for(const xv of tickVals){
+    const cx=tx(xv);
+    if(cx<PAD.l||cx>W-PAD.r) continue;
+    ctx.strokeStyle='#8090a0'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(cx,baseline); ctx.lineTo(cx,baseline+5); ctx.stroke();
+    const z=(xv-mA)/sdA;
+    ctx.fillStyle='#6a7a8a'; ctx.textAlign='center';
+    ctx.fillText(mode==='sim'?`${z>=0?'+':''}${z.toFixed(0)}σ`:xv.toFixed(mode==='sim'?1:0),cx,baseline+18);
+  }
+}
+
+function setMode(m){
+  mode=m;
+  document.getElementById('btn-sim').classList.toggle('active',m==='sim');
+  document.getElementById('btn-man').classList.toggle('active',m==='man');
+  document.getElementById('sim-panel').style.display=m==='sim'?'block':'none';
+  document.getElementById('man-panel').style.display=m==='man'?'block':'none';
+  update();
+}
+
+function setSDMode(m){
+  sdMode=m;
+  document.getElementById('sd-eq').classList.toggle('active',m==='equal');
+  document.getElementById('sd-uneq').classList.toggle('active',m==='unequal');
+  document.getElementById('sd-unequal-panel').style.display=m==='unequal'?'block':'none';
+  document.getElementById('sd-equal-n').style.display=m==='equal'?'block':'none';
+  update();
+}
+
+function setFraming(f){
+  framing=f;
+  document.getElementById('fr-groups').classList.toggle('active',f==='groups');
+  document.getElementById('fr-prepost').classList.toggle('active',f==='prepost');
+  const ispp=f==='prepost';
+  document.getElementById('lbl-a').textContent=ispp?'Pre-Test':'Gruppe A (Kontrolle)';
+  document.getElementById('lbl-b').textContent=ispp?'Post-Test':'Gruppe B (Intervention)';
+  document.getElementById('leg-a').textContent=ispp?'Pre':'Gruppe A';
+  document.getElementById('leg-b').textContent=ispp?'Post':'Gruppe B';
+  update();
+}
+
+function onSimChange(){
+  const d=parseFloat(document.getElementById('sim-d').value)||0;
+  document.getElementById('sim-d-disp').textContent='d = '+(d>=0?'+':'')+d.toFixed(2);
+  update();
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  update();
+  window.addEventListener('resize',update);
+});
+</script>
+</body>
+</html>

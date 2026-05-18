@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modul E — Einzelfall-Analyse (N=1)</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --rub:#003560;--rub-light:#e8eef4;--muted:#5a6a7a;
+  --border:#d0d8e0;--bg:#f8f9fb;
+  --green:#3a7a35;--red:#b03020;--amber:#b07010;
+  --orange:#d06010;
+}
+body{font-family:'Atkinson Hyperlegible',sans-serif;background:var(--bg);color:#1a2332;min-height:100vh}
+header{background:var(--rub);color:#fff;padding:18px 32px;display:flex;align-items:center;gap:16px}
+.rub-badge{background:#fff;color:var(--rub);font-family:'Crimson Pro',serif;font-weight:700;font-size:1.1rem;padding:4px 10px;border-radius:2px}
+header h1{font-family:'Crimson Pro',serif;font-size:1.35rem;font-weight:600}
+header p{font-size:.8rem;opacity:.7;margin-top:2px}
+
+.layout{display:grid;grid-template-columns:310px 1fr;height:calc(100vh - 72px)}
+
+/* ── LEFT PANEL ─────────────────────────────────────── */
+.controls{background:#fff;border-right:1px solid var(--border);overflow-y:auto;padding:20px 16px}
+.st{font-family:'Crimson Pro',serif;font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.st:first-child{margin-top:0}
+
+label{display:block;font-size:.75rem;color:var(--muted);margin-bottom:3px;font-weight:700;letter-spacing:.04em}
+input[type=number],input[type=text]{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:5px;font-size:.86rem;font-family:'Atkinson Hyperlegible',sans-serif;background:#fff;color:#1a2332}
+input[type=number]:focus,input[type=text]:focus{outline:2px solid var(--rub);border-color:var(--rub)}
+input[type=range]{width:100%;accent-color:var(--rub);margin:5px 0 2px}
+.field{margin-bottom:10px}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+.toggle{display:flex;border-radius:6px;overflow:hidden;border:1px solid var(--border);margin-bottom:4px}
+.tbtn{flex:1;padding:7px 0;font-size:.78rem;background:#fff;border:none;cursor:pointer;color:var(--muted);font-family:'Atkinson Hyperlegible',sans-serif;transition:.15s;line-height:1.3}
+.tbtn.active{background:var(--rub);color:#fff;font-weight:700}
+
+.icc-block{background:var(--rub-light);border-radius:8px;padding:14px;margin-bottom:8px}
+.icc-block label{color:var(--rub);font-size:.72rem}
+.icc-row{display:flex;align-items:center;gap:10px}
+.icc-disp{font-family:'Crimson Pro',serif;font-size:1.8rem;font-weight:700;color:var(--rub);line-height:1;white-space:nowrap}
+.icc-qual{font-size:.7rem;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap}
+.icc-qual.ex{background:#dcfce7;color:#166534}
+.icc-qual.good{background:#dbeafe;color:#1e40af}
+.icc-qual.ok{background:#fef9c3;color:#854d0e}
+.icc-qual.bad{background:#fee2e2;color:#991b1b}
+
+.hint{font-size:.7rem;color:var(--muted);font-style:italic;line-height:1.45;margin-top:4px}
+.hint strong{font-style:normal;color:#4a5a6a}
+
+/* ── RIGHT PANEL ─────────────────────────────────────── */
+.viz{display:flex;flex-direction:column;padding:16px 20px;gap:12px;overflow:hidden}
+
+.metric-row{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;flex-shrink:0}
+.mc{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 8px;text-align:center}
+.mc .v{font-family:'Crimson Pro',serif;font-size:1.65rem;font-weight:700;line-height:1}
+.mc .l{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.mc .sub{font-size:.63rem;color:var(--muted);font-style:italic;margin-top:2px}
+.mc.c-green{background:#edf7ed;border-color:#4a9a45}.mc.c-green .v{color:var(--green)}
+.mc.c-red  {background:#fdf0f0;border-color:#c04040}.mc.c-red   .v{color:var(--red)}
+.mc.c-amber{background:#fdf6e3;border-color:#c4930a}.mc.c-amber .v{color:var(--amber)}
+.mc.c-hl   {background:var(--rub);border-color:var(--rub)}.mc.c-hl .v,.mc.c-hl .l,.mc.c-hl .sub{color:#fff}
+
+/* Traffic-light verdict */
+.verdict-wrap{display:flex;gap:12px;flex-shrink:0}
+.traffic-light{display:flex;flex-direction:column;gap:5px;padding:10px 8px;background:#fff;border:1px solid var(--border);border-radius:8px;justify-content:center}
+.tl-dot{width:18px;height:18px;border-radius:50%;background:#e2e8f0;transition:background .25s}
+.tl-dot.on-red  {background:#dc2626}
+.tl-dot.on-amber{background:#d97706}
+.tl-dot.on-green{background:#16a34a}
+
+.verdict-card{flex:1;border-radius:8px;padding:12px 16px;border:2px solid var(--border);transition:all .25s;background:#fff}
+.verdict-card.lv-red   {background:#fdf0f0;border-color:#c04040}
+.verdict-card.lv-amber {background:#fdf6e0;border-color:#c4930a}
+.verdict-card.lv-green {background:#edf7ed;border-color:#4a9a45}
+.verdict-title{font-family:'Crimson Pro',serif;font-size:1.05rem;font-weight:700;margin-bottom:5px}
+.verdict-title.lv-red  {color:#991b1b}
+.verdict-title.lv-amber{color:#854d0e}
+.verdict-title.lv-green{color:#14532d}
+.verdict-body{font-size:.81rem;line-height:1.6;color:#2a3a4a}
+
+
+
+/* Canvas */
+.canvas-wrap{flex:1;position:relative;min-height:120px}
+canvas{position:absolute;top:0;left:0}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="rub-badge">RUB</span>
+  <div>
+    <h1>Modul E — Einzelfall-Analyse (N = 1)</h1>
+    <p>Methoden der Datenanalyse · Leistungssteuerung SoSe 2026 · N. R. Volk</p>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ── LINKES PANEL ───────────────────────────────── -->
+  <div class="controls">
+
+    <div class="st">Messwerte</div>
+    <div class="pgrid">
+      <div class="field">
+        <label>Pre-Wert</label>
+        <input type="number" id="inPre" value="40" step="0.1">
+      </div>
+      <div class="field">
+        <label>Post-Wert</label>
+        <input type="number" id="inPost" value="43" step="0.1">
+      </div>
+    </div>
+    <div class="field">
+      <label>Einheit (optional)</label>
+      <input type="text" id="inUnit" value="cm" placeholder="z. B. cm, s, W/kg">
+    </div>
+
+    <div class="st">Richtung</div>
+    <div class="toggle">
+      <button class="tbtn active" id="btnHigher" onclick="setDir(true)">↑ höher = besser</button>
+      <button class="tbtn" id="btnLower" onclick="setDir(false)">↓ niedriger = besser</button>
+    </div>
+    <p class="hint">Für Sprintzeiten: "niedriger = besser" wählen.</p>
+
+    <div class="st">Referenzgruppe (Norm)</div>
+    <div class="pgrid">
+      <div class="field">
+        <label>Mittelwert M</label>
+        <input type="number" id="inMean" value="40" step="0.1">
+      </div>
+      <div class="field">
+        <label>Std.-Abw. SD</label>
+        <input type="number" id="inSD" value="5" step="0.1" min="0.1">
+      </div>
+    </div>
+    <p class="hint">Aus Normtabellen oder Literatur (Altersgruppe, Geschlecht). Wird für <strong>SWC</strong> und <strong>z-Score</strong> benötigt.</p>
+
+    <div class="st">Messgenauigkeit (ICC)</div>
+    <div class="icc-block">
+      <label>Reliabilität des Tests</label>
+      <input type="range" id="sldICC" min="0.70" max="0.995" step="0.005" value="0.96">
+      <div class="icc-row">
+        <div class="icc-disp" id="dispICC">0.90</div>
+        <span class="icc-qual" id="dispICC-qual">Gut</span>
+      </div>
+    </div>
+    <p class="hint"><strong>Literaturwerte:</strong> CMJ ≈ 0,95 · Sprintzeit ≈ 0,97 · Maximalkraft ≈ 0,90–0,95 · Gleichgewicht ≈ 0,75–0,85</p>
+
+  </div>
+
+  <!-- ── RECHTES PANEL ──────────────────────────────── -->
+  <div class="viz">
+
+    <!-- Kennzahlenkarten -->
+    <div class="metric-row" id="metricRow">
+      <!-- per JS befüllt -->
+    </div>
+
+    <!-- Ampel + Verdikt -->
+    <div class="verdict-wrap">
+      <div class="traffic-light">
+        <div class="tl-dot" id="dotGreen"></div>
+        <div class="tl-dot" id="dotAmber"></div>
+        <div class="tl-dot" id="dotRed"></div>
+      </div>
+      <div class="verdict-card" id="verdictCard">
+        <div class="verdict-title" id="verdictTitle">—</div>
+        <div class="verdict-body" id="verdictBody">Werte eingeben, um die Analyse zu starten.</div>
+      </div>
+    </div>
+
+    <!-- Canvas Normalverteilung -->
+    <div class="canvas-wrap">
+      <canvas id="chart"></canvas>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let higherBetter = true;
+
+function setDir(val) {
+  higherBetter = val;
+  document.getElementById('btnHigher').classList.toggle('active', val);
+  document.getElementById('btnLower').classList.toggle('active', !val);
+  update();
+}
+
+/* ── Mathematik ───────────────────────────────────── */
+function normPDF(z) { return Math.exp(-0.5*z*z) / Math.sqrt(2*Math.PI); }
+
+function normCDF(z) {
+  const a1=0.319381530, a2=-0.356563782, a3=1.781477937, a4=-1.821255978, a5=1.330274429;
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const k = t*(a1+t*(a2+t*(a3+t*(a4+t*a5))));
+  const phi = Math.exp(-0.5*z*z)/Math.sqrt(2*Math.PI);
+  const p = 1 - phi*k;
+  return z >= 0 ? p : 1-p;
+}
+
+function fmt(v, d=2) { return isFinite(v) ? v.toFixed(d) : '—'; }
+function fmtSign(v, d=2) { return isFinite(v) ? (v>=0?'+':'')+v.toFixed(d) : '—'; }
+function fmtAbs(v, d=1) { return isFinite(v) ? Math.abs(v).toFixed(d) : '—'; }
+
+/* ── Hauptrechnung ───────────────────────────────── */
+function update() {
+  const pre    = parseFloat(document.getElementById('inPre').value)  || 0;
+  const post   = parseFloat(document.getElementById('inPost').value) || 0;
+  const unit   = document.getElementById('inUnit').value.trim();
+  const meanR  = parseFloat(document.getElementById('inMean').value) || 0;
+  const sdR    = Math.max(parseFloat(document.getElementById('inSD').value) || 5, 0.001);
+  const icc    = parseFloat(document.getElementById('sldICC').value);
+  const threshold_substanziell = 0.8 * sdR; // Cohen d=0.8 (großer Effekt)
+
+  // ICC Qualitäts-Badge
+  const dispQ = document.getElementById('dispICC-qual');
+  document.getElementById('dispICC').textContent = icc.toFixed(3);
+  if (icc >= 0.95) { dispQ.textContent='Exzellent'; dispQ.className='icc-qual ex'; }
+  else if (icc >= 0.90) { dispQ.textContent='Gut'; dispQ.className='icc-qual good'; }
+  else if (icc >= 0.75) { dispQ.textContent='Akzeptabel'; dispQ.className='icc-qual ok'; }
+  else { dispQ.textContent='Schlecht'; dispQ.className='icc-qual bad'; }
+
+  const delta    = post - pre;                          // Rohveränderung
+  const deltaEff = higherBetter ? delta : -delta;       // positiv = Verbesserung
+  const deltaPct = pre !== 0 ? (delta / Math.abs(pre)) * 100 : NaN;
+
+  const sem     = sdR * Math.sqrt(1 - icc);
+  const semDiff = sem * Math.sqrt(2);
+  const mdc     = semDiff * 1.96;
+  const swc     = 0.2 * sdR;
+  const rci     = semDiff > 0 ? delta / semDiff : NaN;
+
+  const zPre  = (pre  - meanR) / sdR;
+  const zPost = (post - meanR) / sdR;
+  const pPre  = normCDF(zPre)  * 100;
+  const pPost = normCDF(zPost) * 100;
+  const deltaZ = higherBetter ? (zPost - zPre) : (zPre - zPost); // positiv = Normposition verbessert
+
+  // 3-stufige Ampelklassifikation
+  // Rot   = unterhalb MDC (Messrauschen)
+  // Gelb  = MDC überschritten, aber < 0.8×SD (Cohen d < 0.8, kleiner–mittlerer Bereich)
+  // Grün  = MDC UND substanzielle Schwelle (d ≥ 0.8) überschritten
+  const absDelta = Math.abs(delta);
+  const d_observed = sdR > 0 ? absDelta / sdR : 0;
+  let level;
+  if (absDelta < mdc)                         level = 'red';
+  else if (absDelta < threshold_substanziell) level = 'amber';
+  else                                        level = 'green';
+
+  // ── Kennzahlenkarten ─────────────────────────────
+  const ul = unit ? ' ' + unit : '';
+  const deltaColor = deltaEff > 0 ? 'c-green' : deltaEff < 0 ? 'c-red' : '';
+  const mdcClass = absDelta >= mdc ? 'c-green' : 'c-red';
+  const swcClass = absDelta >= swc ? 'c-green' : 'c-red';
+  const rciAbs = Math.abs(rci);
+  const rciClass = rciAbs >= 1.96 ? 'c-green' : 'c-red';
+  const dzClass = deltaZ > 0 ? 'c-green' : deltaZ < 0 ? 'c-red' : '';
+
+  document.getElementById('metricRow').innerHTML = `
+    <div class="mc ${deltaColor}">
+      <div class="v">${fmtSign(delta,1)}</div>
+      <div class="l">Δ${ul}</div>
+      <div class="sub">${isFinite(deltaPct) ? fmtSign(deltaPct,1)+'%' : ''}</div>
+    </div>
+    <div class="mc ${mdcClass}">
+      <div class="v">${fmt(mdc,1)}</div>
+      <div class="l">MDC₉₅${ul}</div>
+      <div class="sub">${absDelta >= mdc ? '✓ überschritten' : '✗ nicht erreicht'}</div>
+    </div>
+    <div class="mc ${swcClass}">
+      <div class="v">${fmt(swc,1)}</div>
+      <div class="l">SWC${ul}</div>
+      <div class="sub">${absDelta >= swc ? '✓ überschritten' : '✗ nicht erreicht'}</div>
+    </div>
+    <div class="mc ${rciClass}">
+      <div class="v">${fmt(rci,2)}</div>
+      <div class="l">RCI</div>
+      <div class="sub">${rciAbs >= 1.96 ? '≥ 1,96 ✓' : '< 1,96'}</div>
+    </div>
+    <div class="mc ${dzClass}">
+      <div class="v">${fmtSign(deltaZ,2)}</div>
+      <div class="l">Δz</div>
+      <div class="sub">${fmt(pPre,0)}→${fmt(pPost,0)} Pz.</div>
+    </div>
+    <div class="mc c-hl">
+      <div class="v">${fmt(sem,2)}</div>
+      <div class="l">SEM${ul}</div>
+      <div class="sub">ICC=${icc.toFixed(2)}</div>
+    </div>`;
+
+  // ── Ampel ─────────────────────────────────────────
+  document.getElementById('dotRed').className   = 'tl-dot' + (level==='red'   ? ' on-red'   : '');
+  document.getElementById('dotAmber').className = 'tl-dot' + (level==='amber' ? ' on-amber' : '');
+  document.getElementById('dotGreen').className = 'tl-dot' + (level==='green' ? ' on-green' : '');
+
+  const vc = document.getElementById('verdictCard');
+  const vt = document.getElementById('verdictTitle');
+  const vb = document.getElementById('verdictBody');
+  vc.className = 'verdict-card lv-' + level;
+  vt.className = 'verdict-title lv-' + level;
+
+  const unitStr = unit ? ` ${unit}` : '';
+  const pctStr  = isFinite(deltaPct) ? ` (${fmtSign(deltaPct,1)} %)` : '';
+  const pctPreStr  = fmt(pPre,0);
+  const pctPostStr = fmt(pPost,0);
+  const isBetter = deltaEff > 0;
+  const changeDir = isBetter ? 'Verbesserung' : (deltaEff < 0 ? 'Verschlechterung' : 'keine Veränderung');
+  const dStr = fmt(d_observed, 2);
+  const swcOk = absDelta >= swc;
+
+  if (level === 'red') {
+    vt.textContent = 'Nicht sicher interpretierbar — im Messrauschen';
+    vb.innerHTML   = `Die beobachtete Veränderung von <strong>${fmtSign(delta,1)}${unitStr}${pctStr}</strong> liegt unterhalb des MDC₉₅ (${fmt(mdc,1)}${unitStr}). Sie befindet sich im Bereich, der allein durch Messfehler entstehen kann. RCI = ${fmt(rci,2)} (Schwelle |RCI| ≥ 1,96). Eine inhaltliche Interpretation der Richtung ist <em>methodisch nicht gerechtfertigt</em>.`;
+  } else if (level === 'amber') {
+    const swcNote = swcOk
+      ? `Der SWC (${fmt(swc,1)}${unitStr}) ist überschritten — die Veränderung ist praktisch bedeutsam (d = ${dStr}).<br>`
+      : `Der SWC (${fmt(swc,1)}${unitStr}) ist ebenfalls überschritten.<br>`;
+    vt.textContent = isBetter ? 'Echte Verbesserung — kleiner bis mittlerer Effekt' : 'Echte Verschlechterung — kleiner bis mittlerer Effekt';
+    vb.innerHTML   = `Die Veränderung von <strong>${fmtSign(delta,1)}${unitStr}${pctStr}</strong> übersteigt den MDC₉₅ (${fmt(mdc,1)}${unitStr}). Die Veränderung ist reliabel und geht über das Messrauschen hinaus (RCI = ${fmt(rci,2)}). ${swcNote}Der Effekt d = ${dStr} liegt im kleinen bis mittleren Bereich (Schwelle für substanzielle Wirkung: d ≥ 0,8 = ${fmt(threshold_substanziell,1)}${unitStr}).`;
+  } else {
+    const pzChange = pctPostStr !== pctPreStr
+      ? ` Die Normposition verschob sich von Perzentil ${pctPreStr} auf Perzentil ${pctPostStr} (Δz = ${fmtSign(deltaZ,2)}).`
+      : '';
+    vt.textContent = isBetter ? 'Echte, substanzielle Verbesserung' : 'Echte, substanzielle Verschlechterung';
+    vb.innerHTML   = `Die Veränderung von <strong>${fmtSign(delta,1)}${unitStr}${pctStr}</strong> übersteigt den MDC₉₅ (${fmt(mdc,1)}${unitStr}) und die Substanzialitätsschwelle (d ≥ 0,8 → ${fmt(threshold_substanziell,1)}${unitStr}). Beobachtetes d = <strong>${dStr}</strong> — großer Effekt nach Cohen (1988).${pzChange}`;
+  }
+
+  // ── Canvas ────────────────────────────────────────
+  drawCanvas(zPre, zPost, mdc/sdR, threshold_substanziell/sdR);
+}
+
+/* ── Canvas-Visualisierung ───────────────────────── */
+function drawCanvas(zPre, zPost, mdcInSD, swcInSD) {
+  const wrap   = document.querySelector('.canvas-wrap');
+  const canvas = document.getElementById('chart');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  if (W < 10 || H < 10) return;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const ml=48, mr=24, mt=36, mb=48;
+  const pw = W-ml-mr, ph = H-mt-mb;
+  const Z0=-3.6, Z1=3.6;
+  const YMAX = 0.46;
+
+  function xOf(z) { return ml + (z-Z0)/(Z1-Z0)*pw; }
+  function yOf(p) { return mt + ph*(1 - p/YMAX); }
+
+  ctx.clearRect(0,0,W,H);
+
+  // ── MDC-Zone (grau) um Pre ────────────────────────
+  const xML = xOf(zPre - mdcInSD);
+  const xMR = xOf(zPre + mdcInSD);
+  ctx.fillStyle = 'rgba(180,190,200,0.30)';
+  ctx.fillRect(Math.max(ml,xML), mt, Math.min(xMR,ml+pw)-Math.max(ml,xML), ph);
+
+  // ── SWC-Linien (orange gestrichelt) ──────────────
+  const xSL = xOf(zPre - swcInSD);
+  const xSR = xOf(zPre + swcInSD);
+  ctx.save();
+  ctx.setLineDash([5,4]);
+  ctx.strokeStyle = '#c06010';
+  ctx.lineWidth = 1;
+  [xSL,xSR].forEach(x => {
+    if (x >= ml && x <= ml+pw) {
+      ctx.beginPath(); ctx.moveTo(x, mt); ctx.lineTo(x, mt+ph); ctx.stroke();
+    }
+  });
+  ctx.restore();
+
+  // ── Normalverteilung Füllung ──────────────────────
+  const steps = 240;
+  ctx.beginPath();
+  for (let i=0; i<=steps; i++) {
+    const z = Z0 + (Z1-Z0)*i/steps;
+    const p = normPDF(z);
+    i===0 ? ctx.moveTo(xOf(z),yOf(p)) : ctx.lineTo(xOf(z),yOf(p));
+  }
+  ctx.lineTo(xOf(Z1),yOf(0));
+  ctx.lineTo(xOf(Z0),yOf(0));
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0,53,96,0.10)';
+  ctx.fill();
+
+  // ── Kurve ─────────────────────────────────────────
+  ctx.beginPath();
+  for (let i=0; i<=steps; i++) {
+    const z = Z0 + (Z1-Z0)*i/steps;
+    const p = normPDF(z);
+    i===0 ? ctx.moveTo(xOf(z),yOf(p)) : ctx.lineTo(xOf(z),yOf(p));
+  }
+  ctx.strokeStyle = '#003560';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // ── Grundlinie ────────────────────────────────────
+  ctx.strokeStyle = '#b0bac4';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(ml,mt+ph); ctx.lineTo(ml+pw,mt+ph); ctx.stroke();
+
+  // ── Achsen-Labels ─────────────────────────────────
+  ctx.fillStyle = '#5a6a7a';
+  ctx.font = '11px Atkinson Hyperlegible,sans-serif';
+  ctx.textAlign = 'center';
+  [-3,-2,-1,0,1,2,3].forEach(z => {
+    const x = xOf(z);
+    if (x < ml-5 || x > ml+pw+5) return;
+    ctx.strokeStyle='#b0bac4'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,mt+ph); ctx.lineTo(x,mt+ph+4); ctx.stroke();
+    ctx.fillStyle='#5a6a7a';
+    ctx.fillText(z===0 ? 'M' : (z>0?'+':'')+z+'σ', x, mt+ph+15);
+  });
+
+  // ── Pfeil Pre → Post (oben) ───────────────────────
+  const xPreP = xOf(zPre);
+  const xPostP = xOf(zPost);
+  const arrowY = mt + 16;
+
+  if (Math.abs(zPost - zPre) > 0.02) {
+    const improve = higherBetter ? (zPost > zPre) : (zPost < zPre);
+    const arrowColor = improve ? '#3a7a35' : '#b03020';
+    ctx.save();
+    ctx.strokeStyle = arrowColor;
+    ctx.fillStyle   = arrowColor;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(xPreP, arrowY); ctx.lineTo(xPostP, arrowY); ctx.stroke();
+    const dir = xPostP > xPreP ? 1 : -1;
+    ctx.beginPath();
+    ctx.moveTo(xPostP, arrowY);
+    ctx.lineTo(xPostP - dir*8, arrowY - 5);
+    ctx.lineTo(xPostP - dir*8, arrowY + 5);
+    ctx.closePath(); ctx.fill();
+
+    // Delta-Label am Pfeil
+    const midX = (xPreP + xPostP) / 2;
+    const raw = document.getElementById('inPre').value;
+    const pre = parseFloat(raw)||0;
+    const post = parseFloat(document.getElementById('inPost').value)||0;
+    const delta = post - pre;
+    const unit = document.getElementById('inUnit').value.trim();
+    ctx.font = 'bold 10px Atkinson Hyperlegible,sans-serif';
+    ctx.textAlign = 'center';
+    const dLabel = (delta>=0?'+':'')+delta.toFixed(1)+(unit?' '+unit:'');
+    ctx.fillStyle = '#fff';
+    const tw = ctx.measureText(dLabel).width;
+    ctx.fillRect(midX - tw/2 - 3, arrowY - 11, tw + 6, 14);
+    ctx.fillStyle = arrowColor;
+    ctx.fillText(dLabel, midX, arrowY - 1);
+    ctx.restore();
+  }
+
+  // ── Pre-Marker ────────────────────────────────────
+  const yPreCurve = yOf(normPDF(zPre));
+  ctx.save();
+  ctx.setLineDash([3,3]);
+  ctx.strokeStyle = '#003560'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(xPreP, mt+ph); ctx.lineTo(xPreP, yPreCurve); ctx.stroke();
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(xPreP, arrowY, 8, 0, 2*Math.PI);
+  ctx.fillStyle = '#fff'; ctx.fill();
+  ctx.strokeStyle = '#003560'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#003560';
+  ctx.font = 'bold 8px Atkinson Hyperlegible,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('PRE', xPreP, arrowY + 3);
+
+  // Label unten
+  const sdR = Math.max(parseFloat(document.getElementById('inSD').value)||5, 0.001);
+  const meanR = parseFloat(document.getElementById('inMean').value)||0;
+  const pre  = parseFloat(document.getElementById('inPre').value)||0;
+  const post = parseFloat(document.getElementById('inPost').value)||0;
+  const pPre  = (normCDF(zPre)*100).toFixed(0);
+  const pPost = (normCDF(zPost)*100).toFixed(0);
+
+  ctx.font = '10px Atkinson Hyperlegible,sans-serif';
+  ctx.fillStyle = '#003560'; ctx.textAlign = 'center';
+  ctx.fillText('Pre', xPreP, mt+ph+30);
+  ctx.fillStyle = '#5a6a7a';
+  ctx.font = '9px Atkinson Hyperlegible,sans-serif';
+  ctx.fillText('Pz.'+pPre, xPreP, mt+ph+40);
+
+  // ── Post-Marker ───────────────────────────────────
+  const yPostCurve = yOf(normPDF(zPost));
+  ctx.save();
+  ctx.setLineDash([3,3]);
+  ctx.strokeStyle = '#c06010'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(xPostP, mt+ph); ctx.lineTo(xPostP, yPostCurve); ctx.stroke();
+  ctx.restore();
+
+  const improve = higherBetter ? (zPost > zPre) : (zPost < zPre);
+  const postColor = (Math.abs(post-pre) < 0.001) ? '#8090a0' : (improve ? '#3a7a35' : '#b03020');
+  ctx.beginPath(); ctx.arc(xPostP, arrowY, 8, 0, 2*Math.PI);
+  ctx.fillStyle = postColor; ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 8px Atkinson Hyperlegible,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('POST', xPostP, arrowY + 3);
+
+  ctx.font = '10px Atkinson Hyperlegible,sans-serif';
+  ctx.fillStyle = postColor; ctx.textAlign = 'center';
+  ctx.fillText('Post', xPostP, mt+ph+30);
+  ctx.fillStyle = '#5a6a7a';
+  ctx.font = '9px Atkinson Hyperlegible,sans-serif';
+  ctx.fillText('Pz.'+pPost, xPostP, mt+ph+40);
+
+  // ── Legende ───────────────────────────────────────
+  const legY = mt + ph + 30;
+  const legX = ml + pw - 190;
+  if (legX > ml + pw/2) {
+    ctx.fillStyle = 'rgba(180,190,200,0.55)';
+    ctx.fillRect(legX, legY - 7, 14, 10);
+    ctx.fillStyle = '#5a6a7a';
+    ctx.font = '9px Atkinson Hyperlegible,sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('MDC-Zone', legX+18, legY+1);
+
+    ctx.save();
+    ctx.setLineDash([4,3]);
+    ctx.strokeStyle = '#c06010'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(legX+85, legY-2); ctx.lineTo(legX+99, legY-2); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = '#c06010';
+    ctx.fillText('Substanziell-Schwelle (d=0.8)', legX+103, legY+1);
+  }
+}
+
+/* ── Event Listeners ─────────────────────────────── */
+['inPre','inPost','inUnit','inMean','inSD'].forEach(id => {
+  document.getElementById(id).addEventListener('input', update);
+});
+document.getElementById('sldICC').addEventListener('input', update);
+
+const ro = new ResizeObserver(update);
+ro.observe(document.querySelector('.canvas-wrap'));
+
+update();
+</script>
+</body>
+</html>
