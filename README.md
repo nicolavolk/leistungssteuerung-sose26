@@ -1,4 +1,4 @@
-# leistungssteuerung-sose26
+# Leistungssteuerung: Methoden der Datenanalyse
 Interaktive HTML-Lerntools für Methoden der Datenanalyse – Modul 13: Leistungssteuerung - SoSe 26 - Volk
 ---
 # Lernunterlage: Methoden der Datenanalyse in der Leistungssteuerung
